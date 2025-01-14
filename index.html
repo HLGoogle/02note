@@ -3,13 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>保存内容</title>
+    <title>显示 SQL 数据</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>保存内容到 Cloudflare D1</h1>
-    <textarea id="content" rows="10" cols="30"></textarea><br>
-    <button id="saveButton">保存</button>
+    <header>
+        <h1>笔记列表</h1>
+    </header>
+    
+    <main>
+        <div id="notesContainer"></div> <!-- 用于显示笔记的区域 -->
+    </main>
 
-    <script src="script.js"></script>
+    <footer>
+        <p>版权所有 © 2025</p>
+    </footer>
+
+    <script src="js/script.js"></script> <!-- 引入 JavaScript 文件 -->
 </body>
 </html>
