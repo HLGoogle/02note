@@ -5,16 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>简单笔记本</title>
     <style>
-        /* 保持原有样式 */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .note {
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+        }
     </style>
 </head>
 <body>
     <h1>简单笔记本</h1>
     
     <div>
-        <textarea id="noteInput" rows="4" placeholder="输入笔记内容..."></textarea>
+        <textarea id="content" rows="4" placeholder="输入笔记内容..."></textarea>
         <br>
-        <button onclick="saveNote()">保存笔记</button>
+        <button id="saveButton">保存笔记</button>  <!-- 确保这里的 id 是 saveButton -->
     </div>
 
     <div id="notesList"></div>
