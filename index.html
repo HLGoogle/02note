@@ -5,124 +5,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>简单笔记本</title>
     <style>
-        /* 保持原有样式不变 */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .note {
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+        }
     </style>
 </head>
 <body>
     <h1>简单笔记本</h1>
     
-    <div class="note-input">
+    <div>
         <textarea id="noteInput" rows="4" placeholder="输入笔记内容..."></textarea>
         <br>
         <button onclick="saveNote()">保存笔记</button>
     </div>
 
-    <div id="error" class="error"></div>
     <div id="notesList"></div>
 
     <script>
-        const databaseId = '292896b2-d2c4-4d14-b6ed-e836471849f1';
-        const apiToken = 'MfX5Dk1uyOm23IryIKaf09zWofp9lJQGD9ANgro8';
-
-        async function makeRequest(sql, params = []) {
-            try {
-                const response = await fetch('https://api.cloudflare.com/client/v4/accounts/d1/database/' + databaseId, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiToken}`,
-                        'Access-Control-Allow-Origin': '*',
-                        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                        'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-                    },
-                    body: JSON.stringify({
-                        sql,
-                        params
-                    })
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.errors?.[0]?.message || '请求失败');
-                }
-
-                return await response.json();
-            } catch (error) {
-                console.error('API请求错误:', error);
-                showError(`操作失败: ${error.message}`);
-                throw error;
-            }
-        }
-
         async function saveNote() {
             const content = document.getElementById('noteInput').value;
             if (!content.trim()) {
-                showError('请输入笔记内容！');
+                alert('请输入内容');
                 return;
             }
 
             try {
-                await makeRequest(
-                    'INSERT INTO notes (content, created_at) VALUES (?, datetime("now"))',
-                    [content]
-                );
-                
-                document.getElementById('noteInput').value = '';
-                showError('笔记保存成功！');
-                loadNotes();
+                const response = await fetch('/api/notes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content })
+                });
+
+                if (response.ok) {
+                    document.getElementById('noteInput').value = '';
+                    loadNotes();
+                }
             } catch (error) {
-                // 错误已在 makeRequest 中处理
+                alert('保存失败');
             }
         }
 
         async function loadNotes() {
             try {
-                const result = await makeRequest('SELECT * FROM notes ORDER BY created_at DESC');
-                if (result && result.results) {
-                    displayNotes(result.results);
-                }
+                const response = await fetch('/api/notes');
+                const notes = await response.json();
+                
+                const notesList = document.getElementById('notesList');
+                notesList.innerHTML = '';
+                
+                notes.results.forEach(note => {
+                    const noteDiv = document.createElement('div');
+                    noteDiv.className = 'note';
+                    noteDiv.textContent = note.content;
+                    notesList.appendChild(noteDiv);
+                });
             } catch (error) {
-                // 错误已在 makeRequest 中处理
+                console.error('加载笔记失败:', error);
             }
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('error');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-            setTimeout(() => {
-                errorDiv.style.display = 'none';
-            }, 5000);
-        }
-
-        function displayNotes(notes) {
-            const notesList = document.getElementById('notesList');
-            notesList.innerHTML = '';
-            
-            if (!notes || notes.length === 0) {
-                notesList.innerHTML = '<p>暂无笔记</p>';
-                return;
-            }
-
-            notes.forEach(note => {
-                const noteDiv = document.createElement('div');
-                noteDiv.className = 'note';
-                
-                const content = document.createElement('div');
-                content.textContent = note.content;
-                
-                const date = document.createElement('div');
-                date.className = 'note-date';
-                date.textContent = new Date(note.created_at).toLocaleString();
-                
-                noteDiv.appendChild(content);
-                noteDiv.appendChild(date);
-                notesList.appendChild(noteDiv);
-            });
         }
 
         // 页面加载时获取笔记
-        window.onload = loadNotes;
+        loadNotes();
     </script>
 </body>
 </html>
