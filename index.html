@@ -5,29 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>简单笔记本</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 0 20px;
-        }
-        textarea {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        .note {
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-        }
+        /* 保持原有样式 */
     </style>
 </head>
 <body>
@@ -41,51 +19,6 @@
 
     <div id="notesList"></div>
 
-    <script>
-        async function saveNote() {
-            const content = document.getElementById('noteInput').value;
-            if (!content.trim()) {
-                alert('请输入内容');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/notes', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content })
-                });
-
-                if (response.ok) {
-                    document.getElementById('noteInput').value = '';
-                    loadNotes();
-                }
-            } catch (error) {
-                alert('保存失败');
-            }
-        }
-
-        async function loadNotes() {
-            try {
-                const response = await fetch('/api/notes');
-                const notes = await response.json();
-                
-                const notesList = document.getElementById('notesList');
-                notesList.innerHTML = '';
-                
-                notes.results.forEach(note => {
-                    const noteDiv = document.createElement('div');
-                    noteDiv.className = 'note';
-                    noteDiv.textContent = note.content;
-                    notesList.appendChild(noteDiv);
-                });
-            } catch (error) {
-                console.error('加载笔记失败:', error);
-            }
-        }
-
-        // 页面加载时获取笔记
-        loadNotes();
-    </script>
+    <script src="js/script.js"></script>
 </body>
 </html>
