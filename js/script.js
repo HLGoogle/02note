@@ -1,29 +1,32 @@
-document.getElementById('saveButton').onclick = async function() {
-    const content = document.getElementById('content').value;
-    
-    try {
-        const response = await fetch('/api/notes', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ content })
-        });
+// 等待 DOM 加载完成
+document.addEventListener('DOMContentLoaded', function() {
+    // 获取按钮并添加点击事件
+    document.getElementById('saveButton').addEventListener('click', async function() {
+        const content = document.getElementById('content').value;
+        
+        try {
+            const response = await fetch('/api/notes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content })
+            });
 
-        if (response.ok) {
-            alert('内容已保存！');
-            document.getElementById('content').value = '';
-            loadNotes(); // 添加这行来刷新笔记列表
-        } else {
+            if (response.ok) {
+                alert('内容已保存！');
+                document.getElementById('content').value = '';
+                loadNotes();
+            } else {
+                alert('保存失败！');
+            }
+        } catch (error) {
+            console.error('保存失败:', error);
             alert('保存失败！');
         }
-    } catch (error) {
-        console.error('保存失败:', error);
-        alert('保存失败！');
-    }
-};
+    });
+});
 
-// 添加加载笔记的函数
 async function loadNotes() {
     try {
         const response = await fetch('/api/notes');
