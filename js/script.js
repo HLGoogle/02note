@@ -35,10 +35,23 @@ async function loadNotes() {
         const notesList = document.getElementById('notesList');
         notesList.innerHTML = '';
         
-        data.results.forEach(note => {
+        data.results.forEach((note, index) => {
             const noteDiv = document.createElement('div');
             noteDiv.className = 'note';
-            noteDiv.textContent = note.content;
+            
+            // 添加计数
+            const numberSpan = document.createElement('span');
+            numberSpan.className = 'note-number';
+            numberSpan.textContent = (index + 1).toString();
+            
+            // 创建内容元素
+            const contentDiv = document.createElement('div');
+            contentDiv.textContent = note.content;
+            
+            // 添加内容和计数标签
+            noteDiv.appendChild(contentDiv);
+            noteDiv.appendChild(numberSpan);
+            
             notesList.appendChild(noteDiv);
         });
     } catch (error) {
