@@ -27,6 +27,14 @@
             padding: 10px;
             margin: 10px 0;
             border: 1px solid #ddd;
+            position: relative;
+        }
+        .note-number {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            color: #666;
+            font-size: 12px;
         }
     </style>
 </head>
@@ -36,7 +44,7 @@
     <div>
         <textarea id="content" rows="4" placeholder="输入笔记内容..."></textarea>
         <br>
-        <button id="saveButton">保存笔记</button>  <!-- 确保这里的 id 是 saveButton -->
+        <button id="saveButton">保存笔记</button>
     </div>
 
     <div id="notesList"></div>
