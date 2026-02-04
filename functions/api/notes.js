@@ -1,11 +1,22 @@
 /**
  * Cloudflare Pages 后端处理逻辑
- * 优化点：修改内容不再校验密码
+ * 修复点：添加 OPTIONS 预检请求处理，解决 PUT/DELETE 保存失败问题
  */
 export async function onRequest(context) {
   const { request, env } = context;
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = { 
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+  };
+  
   const ADMIN_PWD = '273573221';
+
+  // 处理 OPTIONS 预检请求 (非常重要，否则 PUT 会失败)
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { headers });
+  }
 
   // 1. 新增 (POST)
   if (request.method === 'POST') {
@@ -20,14 +31,10 @@ export async function onRequest(context) {
     }
   }
 
-  // 2. 更新 (PUT) - 修改项不需要管理员密码
+  // 2. 更新 (PUT) - 修改内容和置顶不需要密码
   if (request.method === 'PUT') {
     try {
-      const { id, content, is_pinned, actionType } = await request.json();
-      
-      // 注意：如果是切换置顶状态，可能仍建议保留密码，但这里遵从“修改项不需要密码”的逻辑
-      // 如果你希望置顶切换也不要密码，直接去掉下面逻辑。目前设为只有修改内容不要密码。
-      
+      const { id, content, is_pinned } = await request.json();
       await env.DB.prepare('UPDATE notes SET content = ?, is_pinned = ? WHERE id = ?')
         .bind(content.trim(), is_pinned ? 1 : 0, id)
         .run();
@@ -37,7 +44,7 @@ export async function onRequest(context) {
     }
   }
 
-  // 3. 删除 (DELETE) - 删除依然保留管理员密码保护
+  // 3. 删除 (DELETE) - 依然保留密码保护
   if (request.method === 'DELETE') {
     try {
       const { id, password } = await request.json();
