@@ -1,5 +1,5 @@
 /**
- * 02note 核心交互逻辑 (增强版)
+ * 02note 核心交互逻辑 (布局优化版)
  */
 document.addEventListener('DOMContentLoaded', function() {
     const contentArea = document.getElementById('content');
@@ -25,30 +25,43 @@ document.addEventListener('DOMContentLoaded', function() {
                 const noteDiv = document.createElement('div');
                 noteDiv.className = 'note clearfix' + (note.is_pinned ? ' pinned' : '');
                 
+                // 右上角编号
                 const numberSpan = document.createElement('span');
                 numberSpan.className = 'note-number';
-                numberSpan.textContent = note.is_pinned ? '📌 置顶' : `#${data.length - index}`;
+                numberSpan.textContent = `#${data.length - index}`;
                 
+                // 内容区
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'note-content';
                 contentDiv.textContent = note.content;
                 
-                // 操作按钮容器
+                // 右下角操作容器
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'actions';
 
-                // 修改按钮
+                // --- 置顶切换 (Checkbox) ---
+                const pinLabel = document.createElement('label');
+                pinLabel.className = 'pin-toggle-label';
+                const pinInput = document.createElement('input');
+                pinInput.type = 'checkbox';
+                pinInput.checked = !!note.is_pinned;
+                pinInput.onchange = () => handleTogglePin(note.id, !note.is_pinned, note.content);
+                pinLabel.appendChild(pinInput);
+                pinLabel.append(' 置顶');
+
+                // --- 修改按钮 ---
                 const editBtn = document.createElement('button');
                 editBtn.className = 'btn-small edit-btn';
                 editBtn.textContent = '修改';
-                editBtn.onclick = () => handleEdit(note.id, note.content);
+                editBtn.onclick = () => handleEdit(note.id, note.content, note.is_pinned);
 
-                // 删除按钮
+                // --- 删除按钮 ---
                 const delBtn = document.createElement('button');
                 delBtn.className = 'btn-small delete-btn';
                 delBtn.textContent = '删除';
                 delBtn.onclick = () => handleDelete(note.id);
                 
+                actionsDiv.appendChild(pinLabel);
                 actionsDiv.appendChild(editBtn);
                 actionsDiv.appendChild(delBtn);
                 
@@ -63,8 +76,39 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 2. 修改逻辑 (带密码验证)
-    async function handleEdit(id, oldContent) {
+    // 2. 修改置顶状态
+    async function handleTogglePin(id, newPinStatus, currentContent) {
+        const password = prompt('请输入管理员密码以更改置顶状态:');
+        if (password === null) {
+            await loadNotes(); // 恢复 checkbox 状态
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/notes', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    id, 
+                    password, 
+                    content: currentContent, 
+                    is_pinned: newPinStatus ? 1 : 0 
+                })
+            });
+
+            if (!response.ok) {
+                const result = await response.json();
+                alert('操作失败: ' + (result.error || '密码错误'));
+            }
+            await loadNotes();
+        } catch (error) {
+            alert('请求失败');
+            await loadNotes();
+        }
+    }
+
+    // 3. 修改内容逻辑
+    async function handleEdit(id, oldContent, isPinned) {
         const password = prompt('请输入管理员密码以执行修改:');
         if (password === null) return;
 
@@ -75,7 +119,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch('/api/notes', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, password, content: newContent })
+                body: JSON.stringify({ 
+                    id, 
+                    password, 
+                    content: newContent,
+                    is_pinned: isPinned
+                })
             });
 
             const result = await response.json();
@@ -89,7 +138,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 3. 删除逻辑 (带密码验证)
+    // 4. 删除逻辑
     async function handleDelete(id) {
         const password = prompt('请输入管理员密码以执行删除:');
         if (password === null) return;
@@ -112,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 4. 保存逻辑
+    // 5. 新增保存逻辑
     saveBtn.addEventListener('click', async function() {
         const content = contentArea.value.trim();
         const isPinned = pinCheckbox.checked;
@@ -131,7 +180,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (response.ok) {
                 contentArea.value = '';
-                pinCheckbox.checked = false; // 重置置顶勾选
+                pinCheckbox.checked = false;
                 await loadNotes();
             } else {
                 const err = await response.json();
@@ -146,6 +195,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 初始化加载
     loadNotes();
 });
