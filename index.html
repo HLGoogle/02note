@@ -64,7 +64,7 @@
         }
         .note {
             padding: 20px;
-            padding-bottom: 55px; /* 增加底部间距给右下角操作区 */
+            padding-bottom: 55px; 
             background-color: #fff;
             border-radius: 10px;
             position: relative;
@@ -82,6 +82,20 @@
             color: #444;
             min-height: 1.2em;
         }
+        /* 行内编辑框样式 */
+        .inline-edit-area {
+            width: 100%;
+            min-height: 100px;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            font-size: 16px;
+            line-height: 1.6;
+            font-family: inherit;
+            background-color: #fff;
+            outline: none;
+        }
         .note-number {
             position: absolute;
             top: 10px;
@@ -90,7 +104,6 @@
             font-size: 11px;
             font-family: monospace;
         }
-        /* 右下角操作区容器 */
         .actions {
             position: absolute;
             right: 15px;
@@ -125,6 +138,15 @@
             background-color: #007bff;
             color: #fff;
         }
+        /* 编辑状态特有按钮 */
+        .save-edit-btn {
+            background-color: #52c41a;
+            color: white;
+        }
+        .cancel-edit-btn {
+            background-color: #f0f0f0;
+            color: #666;
+        }
         .delete-btn {
             background-color: transparent;
             color: #ff4d4f;
@@ -134,7 +156,6 @@
             background-color: #ff4d4f;
             color: #fff;
         }
-        /* 彻底禁止左侧出现任何残留按钮 */
         .note > button {
             display: none !important;
         }
