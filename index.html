@@ -46,7 +46,6 @@
             display: flex;
             align-items: center;
             gap: 15px;
-            margin-top: 10px;
         }
         .pin-checkbox-container {
             display: flex;
@@ -55,11 +54,11 @@
             font-size: 14px;
             color: #666;
             cursor: pointer;
-            user-select: none;
+            white-space: nowrap;
         }
         button#saveButton {
             flex: 1;
-            padding: 12px 30px;
+            padding: 12px;
             background-color: #007bff;
             color: white;
             border: none;
@@ -71,10 +70,6 @@
         }
         button#saveButton:hover {
             background-color: #0056b3;
-        }
-        button#saveButton:disabled {
-            background-color: #a0cfff;
-            cursor: not-allowed;
         }
         #notesList {
             display: flex;
@@ -88,30 +83,18 @@
             position: relative;
             box-shadow: 0 2px 8px rgba(0,0,0,0.04);
             border: 1px solid #efefef;
-            transition: transform 0.2s;
         }
         .note.pinned {
-            border-left: 4px solid #fadb14;
-            background-color: #fffdf0;
-        }
-        .pin-tag {
-            font-size: 10px;
-            background: #fadb14;
-            color: #856404;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-right: 8px;
-            vertical-align: middle;
-        }
-        .note:hover {
-            transform: scale(1.01);
+            border-left: 5px solid #007bff;
+            background-color: #f0f7ff;
         }
         .note-content {
             white-space: pre-wrap;
             word-wrap: break-word;
             line-height: 1.6;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             color: #444;
+            min-height: 1.6em;
         }
         .note-number {
             position: absolute;
@@ -119,32 +102,48 @@
             right: 15px;
             color: #cbd5e0;
             font-size: 12px;
-            font-family: 'Courier New', Courier, monospace;
+            font-family: monospace;
         }
+        /* 操作按钮区放在右下角 */
         .actions {
             float: right;
             display: flex;
-            gap: 8px;
+            align-items: center;
+            gap: 12px;
+        }
+        .pin-toggle-label {
+            font-size: 13px;
+            color: #007bff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
         .btn-small {
-            border: none;
-            padding: 6px 12px;
+            border: 1px solid transparent;
+            padding: 4px 12px;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 13px;
             cursor: pointer;
             transition: all 0.2s;
-            opacity: 0.7;
-        }
-        .btn-small:hover {
-            opacity: 1;
-        }
-        .delete-btn {
-            background-color: #ff4d4f;
-            color: white;
         }
         .edit-btn {
-            background-color: #52c41a;
-            color: white;
+            background-color: transparent;
+            color: #007bff;
+            border-color: #007bff;
+        }
+        .edit-btn:hover {
+            background-color: #007bff;
+            color: #fff;
+        }
+        .delete-btn {
+            background-color: transparent;
+            color: #ff4d4f;
+            border-color: #ff4d4f;
+        }
+        .delete-btn:hover {
+            background-color: #ff4d4f;
+            color: #fff;
         }
         .clearfix::after {
             content: "";
