@@ -1,5 +1,5 @@
 /**
- * 02note 核心交互逻辑 (布局优化版)
+ * 02note 核心交互逻辑 (右下角布局修正版)
  */
 document.addEventListener('DOMContentLoaded', function() {
     const contentArea = document.getElementById('content');
@@ -23,12 +23,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             data.forEach((note, index) => {
                 const noteDiv = document.createElement('div');
-                noteDiv.className = 'note clearfix' + (note.is_pinned ? ' pinned' : '');
+                noteDiv.className = 'note' + (note.is_pinned ? ' pinned' : '');
                 
                 // 右上角编号
                 const numberSpan = document.createElement('span');
                 numberSpan.className = 'note-number';
-                numberSpan.textContent = `#${data.length - index}`;
+                numberSpan.textContent = note.is_pinned ? 'PINNED' : `#${data.length - index}`;
                 
                 // 内容区
                 const contentDiv = document.createElement('div');
@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'actions';
 
-                // --- 置顶切换 (Checkbox) ---
+                // --- 置顶切换 ---
                 const pinLabel = document.createElement('label');
                 pinLabel.className = 'pin-toggle-label';
                 const pinInput = document.createElement('input');
@@ -61,13 +61,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 delBtn.textContent = '删除';
                 delBtn.onclick = () => handleDelete(note.id);
                 
+                // 将所有按钮按顺序放入右下角容器
                 actionsDiv.appendChild(pinLabel);
                 actionsDiv.appendChild(editBtn);
                 actionsDiv.appendChild(delBtn);
                 
+                // 组装笔记卡片
                 noteDiv.appendChild(numberSpan);
                 noteDiv.appendChild(contentDiv);
                 noteDiv.appendChild(actionsDiv);
+                
                 notesList.appendChild(noteDiv);
             });
         } catch (error) {
@@ -80,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function handleTogglePin(id, newPinStatus, currentContent) {
         const password = prompt('请输入管理员密码以更改置顶状态:');
         if (password === null) {
-            await loadNotes(); // 恢复 checkbox 状态
+            await loadNotes(); 
             return;
         }
 
@@ -161,7 +164,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 5. 新增保存逻辑
+    // 5. 保存逻辑
     saveBtn.addEventListener('click', async function() {
         const content = contentArea.value.trim();
         const isPinned = pinCheckbox.checked;
