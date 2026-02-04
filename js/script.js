@@ -1,5 +1,5 @@
 /**
- * 02note 核心交互逻辑 (纯净右下角版)
+ * 02note 核心交互逻辑 (行内编辑版)
  */
 document.addEventListener('DOMContentLoaded', function() {
     const contentArea = document.getElementById('content');
@@ -23,8 +23,9 @@ document.addEventListener('DOMContentLoaded', function() {
             data.forEach((note, index) => {
                 const noteDiv = document.createElement('div');
                 noteDiv.className = 'note' + (note.is_pinned ? ' pinned' : '');
+                noteDiv.id = `note-${note.id}`;
                 
-                // 右上角编号/置顶标识
+                // 右上角编号
                 const numberSpan = document.createElement('span');
                 numberSpan.className = 'note-number';
                 numberSpan.textContent = note.is_pinned ? '📌 PINNED' : `#${data.length - index}`;
@@ -34,38 +35,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 contentDiv.className = 'note-content';
                 contentDiv.textContent = note.content;
                 
-                // 右下角操作容器 (Actions Container)
+                // 右下角操作容器
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'actions';
 
-                // --- 1. 置顶复选框 ---
+                // --- 置顶切换 ---
                 const pinLabel = document.createElement('label');
                 pinLabel.className = 'pin-toggle-label';
                 const pinInput = document.createElement('input');
                 pinInput.type = 'checkbox';
                 pinInput.checked = !!note.is_pinned;
-                pinInput.onchange = () => handleTogglePin(note.id, !note.is_pinned, note.content);
+                pinInput.onchange = () => handleQuickUpdate(note.id, note.content, pinInput.checked);
                 pinLabel.appendChild(pinInput);
                 pinLabel.append(' 置顶');
 
-                // --- 2. 修改按钮 ---
+                // --- 修改按钮 (触发编辑模式) ---
                 const editBtn = document.createElement('button');
                 editBtn.className = 'btn-small edit-btn';
                 editBtn.textContent = '修改';
-                editBtn.onclick = () => handleEdit(note.id, note.content, note.is_pinned);
+                editBtn.onclick = () => enterEditMode(note, noteDiv, contentDiv, actionsDiv);
 
-                // --- 3. 删除按钮 ---
+                // --- 删除按钮 ---
                 const delBtn = document.createElement('button');
                 delBtn.className = 'btn-small delete-btn';
                 delBtn.textContent = '删除';
                 delBtn.onclick = () => handleDelete(note.id);
                 
-                // 仅将按钮添加到 actions 容器中
                 actionsDiv.appendChild(pinLabel);
                 actionsDiv.appendChild(editBtn);
                 actionsDiv.appendChild(delBtn);
                 
-                // 组装：将内容和 actions 放入 noteDiv
                 noteDiv.appendChild(numberSpan);
                 noteDiv.appendChild(contentDiv);
                 noteDiv.appendChild(actionsDiv);
@@ -78,69 +77,98 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 2. 修改置顶状态 (需要密码)
-    async function handleTogglePin(id, newPinStatus, currentContent) {
-        const password = prompt('请输入管理员密码以更改置顶状态:');
-        if (password === null) {
-            await loadNotes(); 
-            return;
-        }
+    // 2. 进入编辑模式 (行内)
+    function enterEditMode(note, noteDiv, contentDiv, actionsDiv) {
+        const originalContent = note.content;
+        
+        // 1. 创建 TextArea 代替原内容
+        const editArea = document.createElement('textarea');
+        editArea.className = 'inline-edit-area';
+        editArea.value = originalContent;
+        // 自动聚焦并移动光标到末尾
+        setTimeout(() => {
+            editArea.focus();
+            editArea.setSelectionRange(editArea.value.length, editArea.value.length);
+        }, 10);
 
+        // 2. 备份原有操作栏，创建编辑操作栏
+        const originalActionsHTML = actionsDiv.innerHTML;
+        actionsDiv.innerHTML = '';
+
+        const saveEditBtn = document.createElement('button');
+        saveEditBtn.className = 'btn-small save-edit-btn';
+        saveEditBtn.textContent = '确认修改';
+        
+        const cancelEditBtn = document.createElement('button');
+        cancelEditBtn.className = 'btn-small cancel-edit-btn';
+        cancelEditBtn.textContent = '取消';
+
+        // 3. 替换内容显示
+        const oldDisplay = contentDiv.style.display;
+        contentDiv.style.display = 'none';
+        noteDiv.insertBefore(editArea, actionsDiv);
+
+        // 保存逻辑
+        saveEditBtn.onclick = async () => {
+            const newText = editArea.value.trim();
+            if (!newText) return;
+            
+            saveEditBtn.disabled = true;
+            saveEditBtn.textContent = '保存中...';
+
+            try {
+                const response = await fetch('/api/notes', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        id: note.id, 
+                        content: newText,
+                        is_pinned: note.is_pinned 
+                    })
+                });
+
+                if (response.ok) {
+                    await loadNotes();
+                } else {
+                    alert('保存失败');
+                    saveEditBtn.disabled = false;
+                    saveEditBtn.textContent = '确认修改';
+                }
+            } catch (err) {
+                alert('网络异常');
+                saveEditBtn.disabled = false;
+            }
+        };
+
+        // 取消逻辑
+        cancelEditBtn.onclick = () => {
+            noteDiv.removeChild(editArea);
+            contentDiv.style.display = oldDisplay;
+            actionsDiv.innerHTML = originalActionsHTML;
+            // 重新绑定原始按钮事件 (通过 reload 简单处理，或直接重绑)
+            loadNotes(); 
+        };
+
+        actionsDiv.appendChild(saveEditBtn);
+        actionsDiv.appendChild(cancelEditBtn);
+    }
+
+    // 3. 快速更新 (置顶切换) - 无需密码
+    async function handleQuickUpdate(id, content, isPinned) {
         try {
             const response = await fetch('/api/notes', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    id, 
-                    password, 
-                    content: currentContent, 
-                    is_pinned: newPinStatus ? 1 : 0 
-                })
+                body: JSON.stringify({ id, content, is_pinned: isPinned ? 1 : 0 })
             });
-
-            if (!response.ok) {
-                const result = await response.json();
-                alert('操作失败: ' + (result.error || '密码错误'));
-            }
-            await loadNotes();
+            if (!response.ok) await loadNotes();
+            else await loadNotes(); // 刷新布局顺序
         } catch (error) {
-            alert('网络异常');
             await loadNotes();
         }
     }
 
-    // 3. 修改内容逻辑 (需要密码)
-    async function handleEdit(id, oldContent, isPinned) {
-        const password = prompt('请输入管理员密码以执行修改:');
-        if (password === null) return;
-
-        const newContent = prompt('请输入新的笔记内容:', oldContent);
-        if (newContent === null || newContent.trim() === '') return;
-
-        try {
-            const response = await fetch('/api/notes', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    id, 
-                    password, 
-                    content: newContent,
-                    is_pinned: isPinned
-                })
-            });
-
-            if (response.ok) {
-                await loadNotes();
-            } else {
-                const result = await response.json();
-                alert('修改失败: ' + (result.error || '密码错误'));
-            }
-        } catch (error) {
-            alert('修改请求失败');
-        }
-    }
-
-    // 4. 删除逻辑 (需要密码)
+    // 4. 删除逻辑 (仍保留管理员密码)
     async function handleDelete(id) {
         const password = prompt('请输入管理员密码以执行删除:');
         if (password === null) return;
@@ -163,34 +191,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 5. 保存逻辑 (直接保存，不带置顶状态)
+    // 5. 保存逻辑 (直接保存)
     saveBtn.addEventListener('click', async function() {
         const content = contentArea.value.trim();
         if (!content) return;
 
         saveBtn.disabled = true;
-        const originalText = saveBtn.textContent;
         saveBtn.textContent = '同步中...';
         
         try {
             const response = await fetch('/api/notes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content, is_pinned: 0 }) // 默认不置顶
+                body: JSON.stringify({ content, is_pinned: 0 })
             });
 
             if (response.ok) {
                 contentArea.value = '';
                 await loadNotes();
-            } else {
-                const err = await response.json();
-                alert('保存失败: ' + (err.error || '数据库异常'));
             }
-        } catch (error) {
-            alert('连接服务器失败');
         } finally {
             saveBtn.disabled = false;
-            saveBtn.textContent = originalText;
+            saveBtn.textContent = '保存到云端';
         }
     });
 
