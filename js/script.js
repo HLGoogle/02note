@@ -1,9 +1,10 @@
 /**
- * 02note 核心交互逻辑
+ * 02note 核心交互逻辑 (增强版)
  */
 document.addEventListener('DOMContentLoaded', function() {
     const contentArea = document.getElementById('content');
     const saveBtn = document.getElementById('saveButton');
+    const pinCheckbox = document.getElementById('pinCheckbox');
     const notesList = document.getElementById('notesList');
 
     // 1. 加载笔记列表
@@ -22,25 +23,38 @@ document.addEventListener('DOMContentLoaded', function() {
 
             data.forEach((note, index) => {
                 const noteDiv = document.createElement('div');
-                noteDiv.className = 'note clearfix';
+                noteDiv.className = 'note clearfix' + (note.is_pinned ? ' pinned' : '');
                 
                 const numberSpan = document.createElement('span');
                 numberSpan.className = 'note-number';
-                numberSpan.textContent = `#${data.length - index}`;
+                numberSpan.textContent = note.is_pinned ? '📌 置顶' : `#${data.length - index}`;
                 
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'note-content';
                 contentDiv.textContent = note.content;
                 
-                // 删除按钮逻辑
+                // 操作按钮容器
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'actions';
+
+                // 修改按钮
+                const editBtn = document.createElement('button');
+                editBtn.className = 'btn-small edit-btn';
+                editBtn.textContent = '修改';
+                editBtn.onclick = () => handleEdit(note.id, note.content);
+
+                // 删除按钮
                 const delBtn = document.createElement('button');
-                delBtn.className = 'delete-btn';
+                delBtn.className = 'btn-small delete-btn';
                 delBtn.textContent = '删除';
                 delBtn.onclick = () => handleDelete(note.id);
                 
+                actionsDiv.appendChild(editBtn);
+                actionsDiv.appendChild(delBtn);
+                
                 noteDiv.appendChild(numberSpan);
                 noteDiv.appendChild(contentDiv);
-                noteDiv.appendChild(delBtn);
+                noteDiv.appendChild(actionsDiv);
                 notesList.appendChild(noteDiv);
             });
         } catch (error) {
@@ -49,10 +63,36 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 2. 删除逻辑 (带密码验证)
+    // 2. 修改逻辑 (带密码验证)
+    async function handleEdit(id, oldContent) {
+        const password = prompt('请输入管理员密码以执行修改:');
+        if (password === null) return;
+
+        const newContent = prompt('请输入新的笔记内容:', oldContent);
+        if (newContent === null || newContent.trim() === '') return;
+
+        try {
+            const response = await fetch('/api/notes', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, password, content: newContent })
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                await loadNotes();
+            } else {
+                alert('修改失败: ' + (result.error || '密码错误'));
+            }
+        } catch (error) {
+            alert('修改请求失败，请稍后重试');
+        }
+    }
+
+    // 3. 删除逻辑 (带密码验证)
     async function handleDelete(id) {
         const password = prompt('请输入管理员密码以执行删除:');
-        if (password === null) return; // 用户取消输入
+        if (password === null) return;
 
         try {
             const response = await fetch('/api/notes', {
@@ -62,9 +102,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             const result = await response.json();
-            
             if (response.ok) {
-                await loadNotes(); // 刷新列表
+                await loadNotes();
             } else {
                 alert('操作失败: ' + (result.error || '密码错误'));
             }
@@ -73,9 +112,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 3. 保存逻辑
+    // 4. 保存逻辑
     saveBtn.addEventListener('click', async function() {
         const content = contentArea.value.trim();
+        const isPinned = pinCheckbox.checked;
         if (!content) return;
 
         saveBtn.disabled = true;
@@ -86,11 +126,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch('/api/notes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content })
+                body: JSON.stringify({ content, is_pinned: isPinned })
             });
 
             if (response.ok) {
                 contentArea.value = '';
+                pinCheckbox.checked = false; // 重置置顶勾选
                 await loadNotes();
             } else {
                 const err = await response.json();
