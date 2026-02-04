@@ -42,22 +42,8 @@
         textarea:focus {
             border-color: #007bff;
         }
-        .input-footer {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .pin-checkbox-container {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 14px;
-            color: #666;
-            cursor: pointer;
-            white-space: nowrap;
-        }
         button#saveButton {
-            flex: 1;
+            width: 100%;
             padding: 12px;
             background-color: #007bff;
             color: white;
@@ -78,7 +64,7 @@
         }
         .note {
             padding: 20px;
-            padding-bottom: 50px; /* 为右下角按钮留出空间 */
+            padding-bottom: 55px; /* 增加底部间距给右下角操作区 */
             background-color: #fff;
             border-radius: 10px;
             position: relative;
@@ -94,24 +80,24 @@
             word-wrap: break-word;
             line-height: 1.6;
             color: #444;
-            min-height: 1.6em;
+            min-height: 1.2em;
         }
         .note-number {
             position: absolute;
-            top: 12px;
+            top: 10px;
             right: 15px;
             color: #cbd5e0;
             font-size: 11px;
             font-family: monospace;
         }
-        /* 核心修改：将操作区固定在右下角 */
+        /* 右下角操作区容器 */
         .actions {
             position: absolute;
             right: 15px;
-            bottom: 12px;
+            bottom: 15px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
         .pin-toggle-label {
             font-size: 13px;
@@ -124,9 +110,9 @@
         }
         .btn-small {
             border: 1px solid transparent;
-            padding: 3px 10px;
+            padding: 4px 12px;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 13px;
             cursor: pointer;
             transition: all 0.2s;
         }
@@ -148,6 +134,10 @@
             background-color: #ff4d4f;
             color: #fff;
         }
+        /* 彻底禁止左侧出现任何残留按钮 */
+        .note > button {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -155,12 +145,7 @@
     
     <div class="input-section">
         <textarea id="content" rows="4" placeholder="今天想记录点什么？"></textarea>
-        <div class="input-footer">
-            <label class="pin-checkbox-container">
-                <input type="checkbox" id="pinCheckbox"> 置顶此条
-            </label>
-            <button id="saveButton">保存到云端</button>
-        </div>
+        <button id="saveButton">保存到云端</button>
     </div>
 
     <div id="notesList"></div>
