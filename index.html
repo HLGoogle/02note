@@ -78,6 +78,7 @@
         }
         .note {
             padding: 20px;
+            padding-bottom: 50px; /* 为右下角按钮留出空间 */
             background-color: #fff;
             border-radius: 10px;
             position: relative;
@@ -92,7 +93,6 @@
             white-space: pre-wrap;
             word-wrap: break-word;
             line-height: 1.6;
-            margin-bottom: 20px;
             color: #444;
             min-height: 1.6em;
         }
@@ -101,15 +101,17 @@
             top: 12px;
             right: 15px;
             color: #cbd5e0;
-            font-size: 12px;
+            font-size: 11px;
             font-family: monospace;
         }
-        /* 操作按钮区放在右下角 */
+        /* 核心修改：将操作区固定在右下角 */
         .actions {
-            float: right;
+            position: absolute;
+            right: 15px;
+            bottom: 12px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
         .pin-toggle-label {
             font-size: 13px;
@@ -118,12 +120,13 @@
             display: flex;
             align-items: center;
             gap: 4px;
+            user-select: none;
         }
         .btn-small {
             border: 1px solid transparent;
-            padding: 4px 12px;
+            padding: 3px 10px;
             border-radius: 4px;
-            font-size: 13px;
+            font-size: 12px;
             cursor: pointer;
             transition: all 0.2s;
         }
@@ -144,11 +147,6 @@
         .delete-btn:hover {
             background-color: #ff4d4f;
             color: #fff;
-        }
-        .clearfix::after {
-            content: "";
-            clear: both;
-            display: table;
         }
     </style>
 </head>
