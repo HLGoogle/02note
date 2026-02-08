@@ -206,7 +206,7 @@
 
         <!-- 排行榜展示 -->
         <div id="leaderboard-section">
-            <div id="leaderboard-title">TOP 50 幸存者</div>
+            <div id="leaderboard-title">TOP 100 幸存者</div>
             <ul id="leaderboard-list">
                 <!-- JS 动态生成 -->
                 <li style="text-align: center; color: #666; padding: 20px;">加载中...</li>
@@ -329,7 +329,7 @@
             renderLeaderboard(cachedLeaderboard);
 
             // 检查是否有资格上榜 (前50名 或 榜单不满50)
-            const maxListSize = 50;
+            const maxListSize = 100;
             const minScoreOnBoard = cachedLeaderboard.length < maxListSize ? 0 : cachedLeaderboard[cachedLeaderboard.length - 1].score;
 
             if (score > minScoreOnBoard || cachedLeaderboard.length < maxListSize) {
@@ -902,6 +902,7 @@
     </script>
 </body>
 </html>
+
 
 
 
