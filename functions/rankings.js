@@ -10,7 +10,7 @@ export async function onRequest(context) {
     try {
       // 这里的 env.DB 必须已经在 Cloudflare 后台绑定
       const { results } = await env.DB.prepare(
-        'SELECT name, score FROM rankings ORDER BY score DESC, created_at ASC LIMIT 50'
+        'SELECT name, score FROM rankings ORDER BY score DESC, created_at ASC LIMIT 100'
       ).all();
       return new Response(JSON.stringify(results), { headers });
     } catch (e) {
