@@ -185,7 +185,7 @@
     <div id="floating-text-container"></div>
 
     <div id="debug-console">
-        <div>> System Booting...</div>
+        <div>> System Booting1111111111...</div>
     </div>
 
     <div id="game-over-modal" style="display: none;">
@@ -570,7 +570,7 @@
                 // 第一次生成可以快一点，比如2秒后
                 let flowerSpawnInterval = 2000; 
 
-                sysLog("Initializing Scene...");
+                sysLog("正在初始化场景...");
                 const scene = new THREE.Scene();
                 scene.background = new THREE.Color(0x050505);
                 scene.fog = new THREE.Fog(0x000000, 10, 80); 
@@ -609,7 +609,7 @@
                 ground.receiveShadow = true; 
                 scene.add(ground);
 
-                sysLog("Generating textures...");
+                sysLog("正在生成纹理...");
                 const treeTexture = createTreeTexture();
                 const bushTexture = createBushTexture();
                 const flowerTexture = createFlowerTexture();
@@ -912,12 +912,13 @@
                 }
 
                 animate();
-                sysLog("Game Loop Started!", 'success');
+                sysLog("游戏主循环已启动!", 'success');
             } catch (e) { sysLog(`Init Crash: ${e.message}`, 'error'); }
         }
     </script>
 </body>
 </html>
+
 
 
 
