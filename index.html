@@ -762,7 +762,7 @@
                     const secondsElapsed = (now - startTime) / 1000;
                     
                     const currentLevel = Math.floor(secondsElapsed / 30);
-                    if (currentLevel > lastLevel) { lastLevel = currentLevel; sysLog(`Speed Level Up: ${currentLevel}`, 'warn'); }
+                    if (currentLevel > lastLevel) { lastLevel = currentLevel; sysLog(`速度提高: ${currentLevel}`, 'warn'); }
                     const targetSpeed = baseSpeed + (currentLevel * 0.08);
                     speed += (targetSpeed - speed) * 0.01;
                     
@@ -918,6 +918,7 @@
     </script>
 </body>
 </html>
+
 
 
 
