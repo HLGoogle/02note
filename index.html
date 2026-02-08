@@ -276,18 +276,16 @@
 
         // 获取排行榜
         async function fetchLeaderboard() {
-            if (!CLOUDFLARE_WORKER_URL) {
-                sysLog("Mode: Mock Data (No API URL)", 'warn');
-                return new Promise(resolve => setTimeout(() => resolve(getMockLeaderboard()), 300)); // 模拟网络延迟
-            }
-            try {
-                const response = await fetch(`${CLOUDFLARE_WORKER_URL}/rankings`);
-                if (!response.ok) throw new Error("API Error");
-                return await response.json();
-            } catch (e) {
-                sysLog(`Fetch Rank Failed: ${e.message}`, 'error');
-                return getMockLeaderboard(); // 失败回退到本地
-            }
+           const apiUrl = CLOUDFLARE_WORKER_URL || ""; // 为空则使用相对路径
+        try {
+            // 如果apiUrl为空，fetch("/rankings") 会自动请求当前域名
+            const response = await fetch(`${apiUrl}/rankings`);
+            if (!response.ok) throw new Error("API Error");
+            return await response.json();
+        } catch (e) {
+            sysLog(`Fetch Rank Failed: ${e.message}`, 'error');
+            return getMockLeaderboard(); 
+        }
         }
 
         // 提交分数
@@ -914,3 +912,4 @@
     </script>
 </body>
 </html>
+
