@@ -192,7 +192,6 @@
         <h1>熄灭</h1>
         <p>存活距离: <span id="final-score" style="color: #fff; font-weight: bold;">0</span> 米</p>
         
-        <!-- 名字输入区域 (仅当前50名显示) -->
         <div id="name-input-section">
             <div style="color: #d32f2f; font-size: 14px; margin-bottom: 5px;">🔥 新纪录！榜上有名 🔥</div>
             <div style="display: flex; justify-content: center;">
@@ -201,14 +200,11 @@
             </div>
         </div>
 
-        <!-- 状态/提示信息 -->
         <div id="rank-status-msg">正在连接数据库...</div>
 
-        <!-- 排行榜展示 -->
         <div id="leaderboard-section">
             <div id="leaderboard-title">TOP 100 幸存者</div>
             <ul id="leaderboard-list">
-                <!-- JS 动态生成 -->
                 <li style="text-align: center; color: #666; padding: 20px;">加载中...</li>
             </ul>
         </div>
@@ -288,21 +284,39 @@
         }
         }
 
-       // 提交分数的逻辑修复
-    async function sendScoreToDB(name, score) {
-        const apiUrl = CLOUDFLARE_WORKER_URL || "";
-        try {
-            const response = await fetch(`${apiUrl}/submit`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, score })
-            });
-            return response.ok;
-        } catch (e) {
-            sysLog(`Submit Failed: ${e.message}`, 'error');
-            return false;
+       // 提交分数的逻辑修复 - 增强版 (可处理同名低分报错)
+        async function sendScoreToDB(name, score) {
+            const apiUrl = CLOUDFLARE_WORKER_URL || "";
+            try {
+                const response = await fetch(`${apiUrl}/submit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, score })
+                });
+
+                // 尝试解析 JSON 返回值
+                let result;
+                try {
+                    result = await response.json();
+                } catch (jsonError) {
+                    sysLog(`Parse Error: ${jsonError.message}`, 'error');
+                    return { success: false, message: `服务器错误 (${response.status})` };
+                }
+
+                if (!response.ok) {
+                    // 这里捕获后端返回的 specific message
+                    const errorMsg = result.message || result.error || "提交被拒绝";
+                    sysLog(`Submit Refused: ${errorMsg}`, 'warn');
+                    return { success: false, message: errorMsg };
+                }
+                
+                return { success: true };
+            } catch (e) {
+                sysLog(`Submit Failed: ${e.message}`, 'error');
+                return { success: false, message: "网络请求失败，请检查连接" };
+            }
         }
-    }
+
         // 全局变量保存当前游戏结束时的分数和排名数据
         let currentFinalScore = 0;
         let cachedLeaderboard = [];
@@ -380,9 +394,10 @@
             btn.disabled = true;
             btn.innerText = "提交中...";
 
-            const success = await sendScoreToDB(name, currentFinalScore);
+            // 现在的 res 是一个对象: { success: true/false, message: "..." }
+            const res = await sendScoreToDB(name, currentFinalScore);
             
-            if (success) {
+            if (res.success) {
                 document.getElementById('name-input-section').style.display = 'none';
                 document.getElementById('rank-status-msg').innerText = "登记成功！";
                 document.getElementById('rank-status-msg').style.color = "#33ff33";
@@ -392,7 +407,8 @@
             } else {
                 btn.disabled = false;
                 btn.innerText = "重试";
-                alert("提交失败，请检查网络");
+                // 这里会显示后端传来的："该名字已有更高纪录，请换个名字或挑战更高分"
+                alert(res.message); 
             }
         }
 
@@ -902,8 +918,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
