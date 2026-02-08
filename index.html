@@ -288,31 +288,21 @@
         }
         }
 
-        // 提交分数
-        async function sendScoreToDB(name, score) {
-            if (!CLOUDFLARE_WORKER_URL) {
-                // Mock 保存
-                let data = getMockLeaderboard();
-                data.push({ name, score });
-                data.sort((a, b) => b.score - a.score); // 降序
-                data = data.slice(0, 50); // 只保留前50
-                localStorage.setItem(MOCK_DATA_KEY, JSON.stringify(data));
-                return true;
-            }
-
-            try {
-                const response = await fetch(`${CLOUDFLARE_WORKER_URL}/submit`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, score })
-                });
-                return response.ok;
-            } catch (e) {
-                sysLog(`Submit Failed: ${e.message}`, 'error');
-                return false;
-            }
+       // 提交分数的逻辑修复
+    async function sendScoreToDB(name, score) {
+        const apiUrl = CLOUDFLARE_WORKER_URL || "";
+        try {
+            const response = await fetch(`${apiUrl}/submit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, score })
+            });
+            return response.ok;
+        } catch (e) {
+            sysLog(`Submit Failed: ${e.message}`, 'error');
+            return false;
         }
-
+    }
         // 全局变量保存当前游戏结束时的分数和排名数据
         let currentFinalScore = 0;
         let cachedLeaderboard = [];
@@ -912,4 +902,5 @@
     </script>
 </body>
 </html>
+
 
