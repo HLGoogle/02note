@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Dark Forest - Silhouette</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000000; font-family: 'Helvetica Neue', Arial, sans-serif; }
+        
+        /* UI 层 */
+        #ui {
+            position: absolute; top: 20px; left: 20px;
+            color: #888; font-weight: bold; z-index: 10;
+            font-size: 18px; letter-spacing: 1px; pointer-events: none;
+            mix-blend-mode: difference;
+        }
+
+        #guide {
+            position: absolute; bottom: 30px; width: 100%;
+            text-align: center; color: #666; font-size: 14px;
+            pointer-events: none; opacity: 0.8; z-index: 10;
+        }
+
+        /* 浮动文字动画容器 */
+        #floating-text-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; overflow: hidden; z-index: 15;
+        }
+        
+        .floating-score {
+            position: absolute;
+            color: #ff3333;
+            font-weight: bold;
+            font-size: 24px;
+            text-shadow: 0 0 5px #ff0000;
+            animation: floatUp 1.5s ease-out forwards;
+            left: 50%; /* 默认居中，JS会微调 */
+            transform: translateX(-50%);
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; top: 40%; transform: translateX(-50%) scale(0.5); }
+            20% { opacity: 1; transform: translateX(-50%) scale(1.2); }
+            100% { opacity: 0; top: 20%; transform: translateX(-50%) scale(1.0); }
+        }
+
+        /* 调试日志窗口 (右下角) */
+        #debug-console {
+            position: fixed;
+            bottom: 10px; right: 10px; width: 320px; height: 150px;
+            background: rgba(0, 0, 0, 0.85);
+            color: #00ff00; font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 11px; padding: 10px; overflow-y: auto;
+            z-index: 10001; border: 1px solid #333; pointer-events: auto;
+            text-align: left; line-height: 1.4; opacity: 0.7;
+        }
+        #debug-console::-webkit-scrollbar { width: 5px; }
+        #debug-console::-webkit-scrollbar-thumb { background: #333; }
+
+        /* 加载界面 */
+        #loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #080808; color: #666;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000; flex-direction: column;
+            transition: opacity 0.8s ease-out;
+        }
+        .loader-bar {
+            width: 200px; height: 4px; background: #222;
+            border-radius: 2px; overflow: hidden; margin-top: 15px; position: relative;
+        }
+        .loader-progress {
+            position: absolute; left: 0; top: 0; height: 100%; width: 50%;
+            background: #d32f2f; animation: slide 1.5s infinite ease-in-out;
+            transition: width 0.3s, background 0.3s;
+        }
+        @keyframes slide {
+            0% { left: -50%; width: 30%; }
+            50% { left: 20%; width: 80%; }
+            100% { left: 100%; width: 10%; }
+        }
+        #loader-text { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+
+        /* 游戏结束弹窗 - 升级版 */
+        #game-over-modal {
+            display: none; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 10, 10, 0.95); 
+            color: #ccc; padding: 30px;
+            text-align: center; border: 1px solid #333; border-radius: 8px;
+            z-index: 20; width: 320px; 
+            box-shadow: 0 0 60px rgba(0,0,0,0.9);
+            max-height: 80vh; /* 防止太高超出屏幕 */
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #game-over-modal h1 { margin: 0 0 10px 0; color: #d32f2f; font-size: 32px; letter-spacing: 2px; }
+        
+        /* 名字输入区域 */
+        #name-input-section {
+            display: none; /* 默认隐藏，有资格才显示 */
+            margin: 15px 0;
+            animation: fadeIn 0.5s;
+        }
+        
+        input#player-name {
+            background: #222; border: 1px solid #444; color: #fff;
+            padding: 8px; font-size: 16px; width: 60%; text-align: center;
+            border-radius: 4px; outline: none;
+        }
+        input#player-name:focus { border-color: #d32f2f; }
+
+        button#submit-score-btn {
+            background: #d32f2f; color: #fff; border: none; padding: 8px 15px;
+            font-size: 14px; border-radius: 4px; cursor: pointer; margin-left: 5px;
+        }
+
+        /* 状态提示信息 */
+        #rank-status-msg {
+            font-size: 12px; color: #888; margin-top: 5px; min-height: 18px;
+        }
+
+        /* 排行榜列表区域 */
+        #leaderboard-section {
+            margin-top: 15px;
+            border-top: 1px solid #333;
+            padding-top: 10px;
+            flex-grow: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #leaderboard-title {
+            font-size: 14px; color: #aaa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        #leaderboard-list {
+            list-style: none; padding: 0; margin: 0;
+            overflow-y: auto;
+            max-height: 200px; /* 限制高度，内部滚动 */
+            font-size: 13px;
+            text-align: left;
+            border: 1px solid #222;
+            background: #000;
+        }
+        
+        #leaderboard-list::-webkit-scrollbar { width: 4px; }
+        #leaderboard-list::-webkit-scrollbar-thumb { background: #333; }
+
+        #leaderboard-list li {
+            padding: 6px 10px;
+            border-bottom: 1px solid #111;
+            display: flex; justify-content: space-between;
+        }
+        #leaderboard-list li:nth-child(odd) { background: #050505; }
+        #leaderboard-list li.highlight { color: #d32f2f; font-weight: bold; background: #1a0505; }
+        
+        .rank-num { width: 25px; color: #555; display: inline-block; }
+        .rank-name { flex-grow: 1; padding-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rank-score { color: #ccc; }
+
+        .btn-group { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+        button.action-btn { 
+            border: none; padding: 12px; font-size: 14px; cursor: pointer; border-radius: 2px; color: #fff; transition: 0.2s; 
+        }
+        
+        #restart-btn { background: #8b0000; }
+        #restart-btn:hover { background: #a50000; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <div id="loader-text">INITIALIZING...</div>
+        <div class="loader-bar"><div class="loader-progress"></div></div>
+    </div>
+
+    <div id="ui">距离: <span id="score">0</span> 米</div>
+    <div id="guide">🖱️/⌨️/👆 左右闪避</div>
+    <div id="floating-text-container"></div>
+
+    <div id="debug-console">
+        <div>> System Booting...</div>
+    </div>
+
+    <div id="game-over-modal" style="display: none;">
+        <h1>熄灭</h1>
+        <p>存活距离: <span id="final-score" style="color: #fff; font-weight: bold;">0</span> 米</p>
+        
+        <!-- 名字输入区域 (仅当前50名显示) -->
+        <div id="name-input-section">
+            <div style="color: #d32f2f; font-size: 14px; margin-bottom: 5px;">🔥 新纪录！榜上有名 🔥</div>
+            <div style="display: flex; justify-content: center;">
+                <input type="text" id="player-name" placeholder="输入你的名字" maxlength="10">
+                <button id="submit-score-btn" onclick="submitScore()">登记</button>
+            </div>
+        </div>
+
+        <!-- 状态/提示信息 -->
+        <div id="rank-status-msg">正在连接数据库...</div>
+
+        <!-- 排行榜展示 -->
+        <div id="leaderboard-section">
+            <div id="leaderboard-title">TOP 50 幸存者</div>
+            <ul id="leaderboard-list">
+                <!-- JS 动态生成 -->
+                <li style="text-align: center; color: #666; padding: 20px;">加载中...</li>
+            </ul>
+        </div>
+
+        <div class="btn-group">
+            <button id="restart-btn" class="action-btn" onclick="location.reload()">重新点燃火把</button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 🔧 配置区域
+        // ==========================================
+        
+        // 请在此处填入你的 Cloudflare Worker 地址
+        // 例如: const CLOUDFLARE_WORKER_URL = "https://dark-forest-rank.your-name.workers.dev";
+        const CLOUDFLARE_WORKER_URL = ""; 
+
+        // ==========================================
+        
+        // 日志系统
+        function sysLog(msg, type='info') {
+            const consoleEl = document.getElementById('debug-console');
+            if(!consoleEl) return;
+            const time = new Date().toLocaleTimeString('en-US', {hour12: false, hour: "numeric", minute: "numeric", second: "numeric"});
+            const div = document.createElement('div');
+            if(type === 'error') { div.style.color = '#ff3333'; div.innerHTML = `[${time}] ❌ ${msg}`; console.error(msg); } 
+            else if (type === 'warn') { div.style.color = '#ffff33'; div.innerHTML = `[${time}] ⚠️ ${msg}`; } 
+            else if (type === 'success') { div.style.color = '#33ff33'; div.innerHTML = `[${time}] ✅ ${msg}`; }
+            else { div.innerHTML = `[${time}] > ${msg}`; }
+            consoleEl.appendChild(div);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        // 浮动文字特效
+        function showFloatingText(text) {
+            const container = document.getElementById('floating-text-container');
+            const el = document.createElement('div');
+            el.className = 'floating-score';
+            el.innerText = text;
+            container.appendChild(el);
+            setTimeout(() => { if(el.parentNode) el.parentNode.removeChild(el); }, 1500);
+        }
+
+        // --- 排行榜逻辑 ---
+
+        // 模拟数据 (当没有配置 Cloudflare URL 时使用)
+        const MOCK_DATA_KEY = 'dark_forest_mock_leaderboard';
+        function getMockLeaderboard() {
+            let data = localStorage.getItem(MOCK_DATA_KEY);
+            if (!data) {
+                // 初始化一些假数据
+                const initial = [
+                    { name: "Shadow", score: 500 },
+                    { name: "Light", score: 320 },
+                    { name: "Runner", score: 150 },
+                    { name: "Wolf", score: 80 },
+                    { name: "Echo", score: 40 }
+                ];
+                localStorage.setItem(MOCK_DATA_KEY, JSON.stringify(initial));
+                return initial;
+            }
+            return JSON.parse(data);
+        }
+
+        // 获取排行榜
+        async function fetchLeaderboard() {
+            if (!CLOUDFLARE_WORKER_URL) {
+                sysLog("Mode: Mock Data (No API URL)", 'warn');
+                return new Promise(resolve => setTimeout(() => resolve(getMockLeaderboard()), 300)); // 模拟网络延迟
+            }
+            try {
+                const response = await fetch(`${CLOUDFLARE_WORKER_URL}/rankings`);
+                if (!response.ok) throw new Error("API Error");
+                return await response.json();
+            } catch (e) {
+                sysLog(`Fetch Rank Failed: ${e.message}`, 'error');
+                return getMockLeaderboard(); // 失败回退到本地
+            }
+        }
+
+        // 提交分数
+        async function sendScoreToDB(name, score) {
+            if (!CLOUDFLARE_WORKER_URL) {
+                // Mock 保存
+                let data = getMockLeaderboard();
+                data.push({ name, score });
+                data.sort((a, b) => b.score - a.score); // 降序
+                data = data.slice(0, 50); // 只保留前50
+                localStorage.setItem(MOCK_DATA_KEY, JSON.stringify(data));
+                return true;
+            }
+
+            try {
+                const response = await fetch(`${CLOUDFLARE_WORKER_URL}/submit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, score })
+                });
+                return response.ok;
+            } catch (e) {
+                sysLog(`Submit Failed: ${e.message}`, 'error');
+                return false;
+            }
+        }
+
+        // 全局变量保存当前游戏结束时的分数和排名数据
+        let currentFinalScore = 0;
+        let cachedLeaderboard = [];
+
+        // 游戏结束处理 (UI部分)
+        async function onGameOverUI(score) {
+            currentFinalScore = score;
+            const modal = document.getElementById('game-over-modal');
+            const scoreText = document.getElementById('final-score');
+            const inputSection = document.getElementById('name-input-section');
+            const msgEl = document.getElementById('rank-status-msg');
+            const listEl = document.getElementById('leaderboard-list');
+
+            scoreText.innerText = score;
+            modal.style.display = 'flex';
+            inputSection.style.display = 'none'; // 先隐藏输入框
+            msgEl.innerText = "正在获取排名数据...";
+            listEl.innerHTML = '<li style="text-align:center; padding:20px; color:#666;">加载中...</li>';
+
+            // 获取数据
+            cachedLeaderboard = await fetchLeaderboard();
+            
+            // 渲染列表
+            renderLeaderboard(cachedLeaderboard);
+
+            // 检查是否有资格上榜 (前50名 或 榜单不满50)
+            const maxListSize = 50;
+            const minScoreOnBoard = cachedLeaderboard.length < maxListSize ? 0 : cachedLeaderboard[cachedLeaderboard.length - 1].score;
+
+            if (score > minScoreOnBoard || cachedLeaderboard.length < maxListSize) {
+                // 有资格
+                inputSection.style.display = 'block';
+                msgEl.innerText = "请输入名字以登记成绩";
+                msgEl.style.color = "#d32f2f";
+            } else {
+                // 没资格
+                inputSection.style.display = 'none';
+                msgEl.innerText = "距离上榜还差一点点，下次努力！";
+                msgEl.style.color = "#888";
+            }
+        }
+
+        // 渲染列表 DOM
+        function renderLeaderboard(data) {
+            const listEl = document.getElementById('leaderboard-list');
+            listEl.innerHTML = '';
+            
+            if (data.length === 0) {
+                listEl.innerHTML = '<li style="text-align:center; padding:20px; color:#444;">暂无数据，快来抢第一！</li>';
+                return;
+            }
+
+            data.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span class="rank-num">${index + 1}.</span>
+                    <span class="rank-name">${escapeHtml(item.name)}</span>
+                    <span class="rank-score">${item.score}m</span>
+                `;
+                listEl.appendChild(li);
+            });
+        }
+
+        // 点击提交按钮
+        async function submitScore() {
+            const input = document.getElementById('player-name');
+            const btn = document.getElementById('submit-score-btn');
+            const name = input.value.trim();
+            
+            if (!name) {
+                alert("名字不能为空");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "提交中...";
+
+            const success = await sendScoreToDB(name, currentFinalScore);
+            
+            if (success) {
+                document.getElementById('name-input-section').style.display = 'none';
+                document.getElementById('rank-status-msg').innerText = "登记成功！";
+                document.getElementById('rank-status-msg').style.color = "#33ff33";
+                // 刷新列表
+                cachedLeaderboard = await fetchLeaderboard();
+                renderLeaderboard(cachedLeaderboard);
+            } else {
+                btn.disabled = false;
+                btn.innerText = "重试";
+                alert("提交失败，请检查网络");
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return "Unknown";
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+
+        // CDN 列表
+        const CDN_LIST = [
+            "https://lib.baomitu.com/three.js/r128/three.min.js",
+            "https://cdn.bootcdn.net/ajax/libs/three.js/r128/three.min.js",
+            "https://cdn.staticfile.org/three.js/r128/three.min.js",
+            "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+        ];
+
+        let currentCdnIndex = 0;
+
+        function loadScript(url) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = url;
+                script.onload = () => resolve();
+                script.onerror = () => reject();
+                document.head.appendChild(script);
+            });
+        }
+
+        async function tryLoadEngine() {
+            if (currentCdnIndex >= CDN_LIST.length) {
+                sysLog("ALL CONNECTIONS FAILED.", 'error');
+                document.getElementById('loader-text').innerText = "FATAL ERROR: NO NETWORK";
+                document.querySelector('.loader-progress').style.background = "#ff0000";
+                return;
+            }
+
+            const url = CDN_LIST[currentCdnIndex];
+            sysLog(`Attempting connection to Node ${currentCdnIndex + 1}...`);
+            document.getElementById('loader-text').innerText = `CONNECTING TO NODE ${currentCdnIndex + 1}...`;
+
+            try {
+                const loadPromise = loadScript(url);
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error("Timeout")), 3000) 
+                );
+
+                await Promise.race([loadPromise, timeoutPromise]);
+                
+                sysLog("Engine Loaded Successfully!", 'success');
+                document.getElementById('loader-text').innerText = "LOADING ASSETS...";
+                
+                setTimeout(initGame, 100);
+
+            } catch (error) {
+                sysLog(`Node ${currentCdnIndex + 1} Failed/Timeout. Switching...`, 'warn');
+                currentCdnIndex++;
+                tryLoadEngine(); 
+            }
+        }
+
+        tryLoadEngine();
+
+        // --- 🎨 程序化纹理生成器 ---
+        function createTreeTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 1024; 
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#ffffff';
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(220, 1024); ctx.lineTo(292, 1024);
+            ctx.bezierCurveTo(280, 600, 270, 300, 256, 50); 
+            ctx.bezierCurveTo(242, 300, 232, 600, 220, 1024);
+            ctx.fill();
+            const drawBranch = (x, y, len, angle, width) => {
+                if(width < 2 || len < 20) return;
+                const endX = x + len * Math.sin(angle);
+                const endY = y - len * Math.cos(angle);
+                ctx.lineWidth = width; ctx.beginPath(); ctx.moveTo(x, y);
+                const midX = (x + endX) / 2 + (Math.random() - 0.5) * 20;
+                const midY = (y + endY) / 2;
+                ctx.quadraticCurveTo(midX, midY, endX, endY);
+                ctx.stroke();
+                const subCount = 2;
+                for(let i=0; i<subCount; i++) {
+                    const dir = (Math.random() > 0.5 ? 1 : -1);
+                    const newAngle = angle + dir * (0.3 + Math.random() * 0.4);
+                    const newLen = len * (0.6 + Math.random() * 0.2);
+                    drawBranch(endX, endY, newLen, newAngle, width * 0.6);
+                }
+            };
+            drawBranch(256, 700, 180, -0.6, 25); drawBranch(256, 550, 160, 0.7, 20);
+            drawBranch(256, 350, 120, -0.5, 15); drawBranch(256, 200, 80, 0.3, 10);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createBushTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            const count = 15;
+            for(let i=0; i<count; i++) {
+                const r = 30 + Math.random() * 40;
+                const x = 50 + Math.random() * 156;
+                const y = 180 + Math.random() * 60; 
+                ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // 新增：花朵纹理 (红色的彼岸花风格)
+        function createFlowerTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0,0,256,256);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(128, 256);
+            ctx.quadraticCurveTo(128, 150, 128, 100);
+            ctx.stroke();
+            ctx.translate(128, 80);
+            ctx.fillStyle = '#ffffff';
+            for(let i=0; i<12; i++) {
+                ctx.rotate(Math.PI * 2 / 12);
+                ctx.beginPath();
+                ctx.ellipse(0, 40, 6, 40, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.fill();
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // --- ⛰️ 地形系统 (世界坐标系) ---
+        function getElevation(x, z) {
+            const h1 = Math.sin(x * 0.05) * Math.cos(z * 0.03) * 3.5;
+            const h2 = Math.cos(x * 0.12 + 1.5) * Math.sin(z * 0.1 + 0.5) * 1.2;
+            return -4.0 + h1 + h2; 
+        }
+
+        // --- 游戏主逻辑 ---
+        function initGame() {
+            try {
+                let baseSpeed = 0.45; let speed = baseSpeed;
+                let score = 0; // 基础计时分数
+                let bonusScore = 0; // 奖励分数
+                let playerVelocityX = 0; let mouseXNormal = 0;
+                let isGameOver = false; let time = 0; let finalScore = 0;
+                let startTime = performance.now(); let lastLevel = 0;
+                
+                let distanceRun = 0;
+                const playerHeight = 1.8; 
+
+                // --- 花朵生成控制 ---
+                let lastFlowerSpawnTime = performance.now();
+                // 第一次生成可以快一点，比如2秒后
+                let flowerSpawnInterval = 2000; 
+
+                sysLog("Initializing Scene...");
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x050505);
+                scene.fog = new THREE.Fog(0x000000, 10, 80); 
+
+                const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
+                camera.position.set(0, playerHeight, 5);
+
+                const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                document.body.appendChild(renderer.domElement);
+
+                const loader = document.getElementById('loader');
+                loader.style.opacity = 0;
+                setTimeout(() => loader.style.display = 'none', 800);
+
+                const torch = new THREE.SpotLight(0xffddaa, 2.0);
+                torch.distance = 100; torch.angle = Math.PI / 4;
+                torch.penumbra = 0.5; torch.decay = 1.5; torch.castShadow = true;
+                torch.position.set(0, 0, 0); torch.target.position.set(0, 0, -20);
+                torch.shadow.bias = -0.0005; 
+                torch.shadow.mapSize.width = 1024; torch.shadow.mapSize.height = 1024;
+                camera.add(torch); camera.add(torch.target); scene.add(camera);
+                
+                const ambient = new THREE.AmbientLight(0x404040); scene.add(ambient);
+
+                // --- 地面 ---
+                const groundMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x444444, roughness: 0.95, metalness: 0.05 
+                });
+                const groundGeo = new THREE.PlaneGeometry(200, 200, 60, 60);
+                const ground = new THREE.Mesh(groundGeo, groundMat);
+                ground.rotation.x = -Math.PI / 2; 
+                ground.receiveShadow = true; 
+                scene.add(ground);
+
+                sysLog("Generating textures...");
+                const treeTexture = createTreeTexture();
+                const bushTexture = createBushTexture();
+                const flowerTexture = createFlowerTexture();
+
+                // --- 实体系统 ---
+                const treeCount = 500; const bushCount = 400; 
+                const flowerPoolSize = 10; 
+                const spawnDistance = 120; const lateralCullDist = 550; 
+                
+                // 树
+                const treeGeo = new THREE.PlaneGeometry(1, 1); treeGeo.translate(0, 0.5, 0); 
+                const treeMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x2a2a2a, roughness: 1.0, map: treeTexture, alphaTest: 0.4, side: THREE.DoubleSide, transparent: false 
+                });
+                treeMat.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: treeTexture, alphaTest: 0.4 });
+                const treeMesh = new THREE.InstancedMesh(treeGeo, treeMat, treeCount);
+                treeMesh.castShadow = false; treeMesh.receiveShadow = true;
+                treeMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+                scene.add(treeMesh);
+
+                // 灌木
+                const bushGeo = new THREE.PlaneGeometry(1, 1); bushGeo.translate(0, 0.5, 0);
+                const bushMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x151515, roughness: 1.0, map: bushTexture, alphaTest: 0.3, side: THREE.DoubleSide 
+                });
+                bushMat.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: bushTexture, alphaTest: 0.3 });
+                const bushMesh = new THREE.InstancedMesh(bushGeo, bushMat, bushCount);
+                bushMesh.castShadow = false; bushMesh.receiveShadow = true;
+                bushMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+                scene.add(bushMesh);
+
+                // 🌺 花朵 (奖励物品)
+                const flowerGeo = new THREE.PlaneGeometry(1, 1); flowerGeo.translate(0, 0.5, 0);
+                const flowerMat = new THREE.MeshStandardMaterial({
+                    color: 0xff0000,
+                    emissive: 0xff3333,
+                    emissiveIntensity: 0.8,
+                    map: flowerTexture,
+                    alphaTest: 0.5,
+                    side: THREE.DoubleSide,
+                    transparent: true 
+                });
+                const flowerMesh = new THREE.InstancedMesh(flowerGeo, flowerMat, flowerPoolSize);
+                flowerMesh.castShadow = false; flowerMesh.receiveShadow = false;
+                flowerMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+                scene.add(flowerMesh);
+
+                const treesData = []; const bushesData = []; const flowersData = [];
+                const dummy = new THREE.Object3D(); 
+
+                for (let i = 0; i < treeCount; i++) treesData.push(createEntityData('tree'));
+                for (let i = 0; i < bushCount; i++) bushesData.push(createEntityData('bush'));
+                for (let i = 0; i < flowerPoolSize; i++) flowersData.push(createEntityData('flower'));
+
+                function createEntityData(type) {
+                    const spread = 1000;
+                    const z = -Math.random() * spawnDistance;
+                    let x = (Math.random() - 0.5) * spread;
+                    
+                    if (type === 'tree') {
+                        const isTall = Math.random() > 0.6;
+                        const scaleY = isTall ? (30 + Math.random() * 40) : (16 + Math.random() * 16);
+                        const scaleX = isTall ? (5.0 + Math.random() * 3.0) : (7.0 + Math.random() * 4.0);
+                        return { x, z, scaleX, scaleY };
+                    } else if (type === 'bush') {
+                        const scaleY = 2.0 + Math.random() * 3.0;
+                        const scaleX = 4.0 + Math.random() * 5.0;
+                        return { x, z, scaleX, scaleY };
+                    } else if (type === 'flower') {
+                        return { x: 0, z: -999, scaleX: 1.5, scaleY: 1.5, active: false }; 
+                    }
+                }
+
+                function spawnFlower() {
+                    const flower = flowersData.find(f => !f.active);
+                    if (flower) {
+                        flower.active = true;
+                        flower.z = camera.position.z - spawnDistance;
+                        flower.x = camera.position.x + (Math.random() - 0.5) * 40;
+                        sysLog("Bonus Flower Spawned!", 'info');
+                    }
+                }
+
+                // 粒子
+                const particleCount = 600;
+                const particleGeo = new THREE.BufferGeometry();
+                const particlePos = new Float32Array(particleCount * 3);
+                for(let i=0; i<particleCount*3; i+=3) {
+                    particlePos[i] = (Math.random() - 0.5) * 60;   
+                    particlePos[i+1] = (Math.random() - 0.5) * 20; 
+                    particlePos[i+2] = -Math.random() * 100;       
+                }
+                particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+                const particleMat = new THREE.PointsMaterial({ color: 0x888888, size: 0.15, transparent: true, opacity: 0.5 });
+                const particleSystem = new THREE.Points(particleGeo, particleMat);
+                camera.add(particleSystem); 
+
+                function updateMeshMatrix(mesh, dataArray, index) {
+                    const data = dataArray[index];
+                    dummy.position.set(data.x, data.y, data.z);
+                    
+                    if (mesh === flowerMesh) {
+                        dummy.rotation.set(0, time * 2 + index, 0);
+                    } else {
+                        dummy.rotation.set(0, 0, 0); 
+                    }
+                    
+                    dummy.scale.set(data.scaleX, data.scaleY, 1);
+                    dummy.updateMatrix();
+                    mesh.setMatrixAt(index, dummy.matrix);
+                }
+
+                function resetEntityData(data, type) {
+                    data.z = camera.position.z - spawnDistance - Math.random() * 30;
+                    
+                    if (type === 'tree' || type === 'bush') {
+                        const spread = 1000; 
+                        data.x = camera.position.x + (Math.random() - 0.5) * spread;
+                    } else if (type === 'flower') {
+                        data.active = false;
+                        data.z = -999; 
+                        return; 
+                    }
+
+                    if (type === 'tree') {
+                        const isTall = Math.random() > 0.6;
+                        data.scaleY = isTall ? (30 + Math.random() * 40) : (16 + Math.random() * 16);
+                        data.scaleX = isTall ? (5.0 + Math.random() * 3.0) : (7.0 + Math.random() * 4.0);
+                    } else if (type === 'bush') {
+                        data.scaleY = 2.0 + Math.random() * 3.0;
+                        data.scaleX = 4.0 + Math.random() * 5.0;
+                    } 
+                }
+
+                const updateControl = (xRatio) => { mouseXNormal = xRatio * 2 - 1; };
+                window.addEventListener('mousemove', e => updateControl(e.clientX / window.innerWidth));
+                const handleTouch = (e) => { if (e.touches.length > 0) updateControl(e.touches[0].clientX / window.innerWidth); };
+                window.addEventListener('touchmove', handleTouch, {passive: true});
+                window.addEventListener('touchstart', handleTouch, {passive: true});
+                window.addEventListener('touchend', () => mouseXNormal = 0);
+                window.addEventListener('keydown', e => { if (['ArrowLeft','a','A'].includes(e.key)) mouseXNormal = -1.0; else if (['ArrowRight','d','D'].includes(e.key)) mouseXNormal = 1.0; });
+                window.addEventListener('keyup', e => { if (['ArrowLeft','a','A','ArrowRight','d','D'].includes(e.key)) mouseXNormal = 0; });
+                window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+
+                function animate() {
+                    requestAnimationFrame(animate);
+                    if (isGameOver) { renderer.render(scene, camera); return; }
+
+                    const now = performance.now();
+                    const secondsElapsed = (now - startTime) / 1000;
+                    
+                    const currentLevel = Math.floor(secondsElapsed / 30);
+                    if (currentLevel > lastLevel) { lastLevel = currentLevel; sysLog(`Speed Level Up: ${currentLevel}`, 'warn'); }
+                    const targetSpeed = baseSpeed + (currentLevel * 0.08);
+                    speed += (targetSpeed - speed) * 0.01;
+                    
+                    distanceRun += speed; 
+                    time += 0.05;
+
+                    // --- 花朵生成计时器 ---
+                    if (now - lastFlowerSpawnTime > flowerSpawnInterval) {
+                        spawnFlower();
+                        lastFlowerSpawnTime = now;
+                        flowerSpawnInterval = 3000 + Math.random() * 3000; 
+                    }
+                    
+                    if (Math.abs(mouseXNormal) > 0.1) {
+                        // [ADJUST] 加速系数
+                        playerVelocityX += mouseXNormal * 0.08; 
+                    } else {
+                        // [ADJUST] 刹车惯性系数
+                        // 减速/惯性阶段 (数值越小，刹车越快，建议 0.1 ~ 0.7)
+                        // 原来是 0.7 (滑行较远)，改为 0.1 (刹车更快，减少“打滑”感)
+                        playerVelocityX *= 0.1; 
+                    }
+                    playerVelocityX = Math.max(-1.0, Math.min(1.0, playerVelocityX)); 
+                    camera.position.x += playerVelocityX;
+
+                    const cameraWorldZ = camera.position.z - distanceRun;
+                    const currentGroundY = getElevation(camera.position.x, cameraWorldZ);
+                    const targetCameraY = currentGroundY + playerHeight + Math.sin(time * 3) * 0.05;
+                    camera.position.y += (targetCameraY - camera.position.y) * 0.1;
+
+                    ground.position.x = camera.position.x;
+                    ground.position.z = camera.position.z - 20;
+
+                    const posAttribute = groundGeo.attributes.position;
+                    const vertex = new THREE.Vector3();
+                    for (let i = 0; i < posAttribute.count; i++) {
+                        vertex.fromBufferAttribute(posAttribute, i);
+                        const localZ = -vertex.y; 
+                        const renderZ = ground.position.z + localZ;
+                        const worldZ = renderZ - distanceRun; 
+                        const worldX = ground.position.x + vertex.x;
+                        const elevation = getElevation(worldX, worldZ);
+                        posAttribute.setZ(i, elevation);
+                    }
+                    posAttribute.needsUpdate = true;
+                    groundGeo.computeVertexNormals();
+                    
+                    score++; 
+                    const distanceScore = Math.floor(score / 10);
+                    finalScore = distanceScore + bonusScore;
+                    const scoreEl = document.getElementById('score');
+                    if (scoreEl) scoreEl.innerText = finalScore;
+
+                    // --- 更新树木 ---
+                    for (let i = 0; i < treeCount; i++) {
+                        const data = treesData[i];
+                        data.z += speed; 
+                        const treeWorldZ = data.z - distanceRun;
+                        data.y = getElevation(data.x, treeWorldZ) - 0.5;
+
+                        const distZ = data.z - camera.position.z;
+                        if (distZ > -0.5 && distZ < 0.5) {
+                            const distX = Math.abs(data.x - camera.position.x);
+                            
+                            // [ADJUST] 碰撞体积
+                            // hitRadius = 树宽度 * 碰撞系数(0.2) + 玩家缓冲(0.1)
+                            // 增大 前面一个0.1 可以让树更难躲，减小则更容易躲
+                            const hitRadius = data.scaleX * 0.1 + 0.1; 
+
+                            if (distX < hitRadius) { handleGameOver(); break; }
+                        }
+                        
+                        const isBehind = data.z > camera.position.z + 5;
+                        const isTooFarSideways = Math.abs(data.x - camera.position.x) > lateralCullDist;
+                        if (isBehind || isTooFarSideways) resetEntityData(data, 'tree');
+                        updateMeshMatrix(treeMesh, treesData, i);
+                    }
+                    treeMesh.instanceMatrix.needsUpdate = true;
+
+                    // --- 更新灌木 ---
+                    for (let i = 0; i < bushCount; i++) {
+                        const data = bushesData[i];
+                        data.z += speed; 
+                        const bushWorldZ = data.z - distanceRun;
+                        data.y = getElevation(data.x, bushWorldZ);
+                        const isBehind = data.z > camera.position.z + 5;
+                        const isTooFarSideways = Math.abs(data.x - camera.position.x) > lateralCullDist;
+                        if (isBehind || isTooFarSideways) resetEntityData(data, 'bush');
+                        updateMeshMatrix(bushMesh, bushesData, i);
+                    }
+                    bushMesh.instanceMatrix.needsUpdate = true;
+
+                    // --- 更新花朵 (奖励) ---
+                    for (let i = 0; i < flowerPoolSize; i++) {
+                        const data = flowersData[i];
+                        
+                        if (!data.active) {
+                            dummy.position.set(0, -10000, 0); 
+                            flowerMesh.setMatrixAt(i, dummy.matrix);
+                            continue;
+                        }
+
+                        data.z += speed; 
+                        const flowerWorldZ = data.z - distanceRun;
+                        data.y = getElevation(data.x, flowerWorldZ) + 0.2; 
+
+                        // 碰撞检测 (收集)
+                        const distZ = data.z - camera.position.z;
+                        if (distZ > -1.0 && distZ < 0.5) {
+                            const distX = Math.abs(data.x - camera.position.x);
+                            if (distX < 1.5) { 
+                                data.active = false;
+                                bonusScore += 10;
+                                showFloatingText("+10m");
+                                sysLog("Flower collected! +10m");
+                            }
+                        }
+
+                        const isBehind = data.z > camera.position.z + 5;
+                        if (isBehind) resetEntityData(data, 'flower'); 
+                        updateMeshMatrix(flowerMesh, flowersData, i);
+                    }
+                    flowerMesh.instanceMatrix.needsUpdate = true;
+
+                    const positions = particleGeo.attributes.position.array;
+                    for(let i=0; i<particleCount*3; i+=3) {
+                        positions[i+2] += speed * 3; 
+                        if(positions[i+2] > 2) {
+                            positions[i+2] = -80 - Math.random() * 20;
+                            positions[i] = (Math.random() - 0.5) * 60; 
+                            positions[i+1] = (Math.random() - 0.5) * 20; 
+                        }
+                    }
+                    particleGeo.attributes.position.needsUpdate = true;
+
+                    renderer.render(scene, camera);
+                }
+
+                function handleGameOver() {
+                    sysLog(`Game Over! Score: ${finalScore}`);
+                    isGameOver = true;
+                    torch.color.setHex(0xff3333);
+                    torch.intensity = 5;
+                    
+                    // 调用 UI 逻辑
+                    onGameOverUI(finalScore);
+                }
+
+                animate();
+                sysLog("Game Loop Started!", 'success');
+            } catch (e) { sysLog(`Init Crash: ${e.message}`, 'error'); }
+        }
+    </script>
+</body>
+</html>
