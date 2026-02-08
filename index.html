@@ -458,7 +458,7 @@
 
                 await Promise.race([loadPromise, timeoutPromise]);
                 
-                sysLog("Engine Loaded Successfully!", 'success');
+                sysLog("引擎加载好了！", 'success');
                 document.getElementById('loader-text').innerText = "LOADING ASSETS...";
                 
                 setTimeout(initGame, 100);
@@ -918,6 +918,7 @@
     </script>
 </body>
 </html>
+
 
 
 
