@@ -306,7 +306,7 @@
                 if (!response.ok) {
                     // 这里捕获后端返回的 specific message
                     const errorMsg = result.message || result.error || "提交被拒绝";
-                    sysLog(`Submit Refused: ${errorMsg}`, 'warn');
+                    sysLog(`提交失败: ${errorMsg}`, 'warn');
                     return { success: false, message: errorMsg };
                 }
                 
@@ -918,6 +918,7 @@
     </script>
 </body>
 </html>
+
 
 
 
