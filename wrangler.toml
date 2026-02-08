@@ -17,4 +17,4 @@ binding = "DB"
 database_name = "dark-forest-db"
 
 # 数据库的唯一 ID（请从 Cloudflare D1 页面复制并替换此处）
-database_id = "你的-D1-数据库-ID"
+database_id = "7bd94ff7-dc78-4954-9081-55f49face550"
