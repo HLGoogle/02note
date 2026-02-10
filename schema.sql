@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS rankings (
 -- 为分数创建索引，优化查询速度
 CREATE INDEX IF NOT EXISTS idx_rankings_score ON rankings (score DESC);
 
--- 2. 笔记数据表 (用于 02note 笔记本功能)
+-- 2. 笔记数据表 (用于 02run 笔记本功能)
 CREATE TABLE IF NOT EXISTS notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     content TEXT NOT NULL,
