@@ -26,3 +26,5 @@ npm run deploy
 功能特性
 游戏排行：实时保存玩家最高距离，自动展示 Top 50。
 云端记录：支持 Markdown 内容存储、置顶功能及管理员删除保护（原 02Note 功能已整合为 02Run 核心）。
+
+#  https://run.wow80.eu.cc/snow/snow
