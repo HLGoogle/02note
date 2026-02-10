@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Alpine Ski - 雪山大冒险</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #e0f0ff; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+        
+        /* UI 层 - 雪山风格 */
+        #ui {
+            position: absolute; top: 20px; left: 20px;
+            color: #2c3e50; font-weight: 800; z-index: 10;
+            font-size: 24px; letter-spacing: 1px; pointer-events: none;
+            text-shadow: 2px 2px 0px #fff;
+        }
+
+        #guide {
+            position: absolute; bottom: 30px; width: 100%;
+            text-align: center; color: #2980b9; font-size: 16px; font-weight: bold;
+            pointer-events: none; opacity: 0.9; z-index: 10;
+            text-shadow: 1px 1px 0px #fff;
+        }
+
+        /* 浮动文字动画容器 */
+        #floating-text-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; overflow: hidden; z-index: 15;
+        }
+        
+        .floating-score {
+            position: absolute;
+            color: #f1c40f; /* 金币色 */
+            font-weight: bold;
+            font-size: 28px;
+            text-shadow: 2px 2px 0px #d35400, -1px -1px 0 #fff;
+            animation: floatUp 1.0s ease-out forwards;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; top: 40%; transform: translateX(-50%) scale(0.5); }
+            50% { transform: translateX(-50%) scale(1.5); }
+            100% { opacity: 0; top: 20%; transform: translateX(-50%) scale(1.0); }
+        }
+
+        /* 调试日志窗口 */
+        #debug-console {
+            position: fixed;
+            bottom: 10px; right: 10px; width: 300px; height: 120px;
+            background: rgba(255, 255, 255, 0.8);
+            color: #333; font-family: 'Consolas', monospace;
+            font-size: 11px; padding: 10px; overflow-y: auto;
+            z-index: 10001; border: 1px solid #ccc; pointer-events: auto;
+            text-align: left; line-height: 1.4; border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #debug-console::-webkit-scrollbar { width: 5px; }
+        #debug-console::-webkit-scrollbar-thumb { background: #bbb; border-radius: 4px; }
+
+        /* 加载界面 - 雪白风格 */
+        #loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, #87CEEB 0%, #ffffff 100%);
+            color: #2980b9;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000; flex-direction: column;
+            transition: opacity 0.8s ease-out;
+        }
+        .loader-bar {
+            width: 200px; height: 6px; background: rgba(255,255,255,0.5);
+            border-radius: 4px; overflow: hidden; margin-top: 15px; position: relative;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .loader-progress {
+            position: absolute; left: 0; top: 0; height: 100%; width: 50%;
+            background: #3498db; animation: slide 1.5s infinite ease-in-out;
+            transition: width 0.3s, background 0.3s;
+        }
+        @keyframes slide {
+            0% { left: -50%; width: 30%; }
+            50% { left: 20%; width: 80%; }
+            100% { left: 100%; width: 10%; }
+        }
+        #loader-text { font-size: 14px; letter-spacing: 2px; font-weight: bold; text-shadow: 1px 1px 0 #fff; }
+
+        /* 游戏结束弹窗 - 雪山版 */
+        #game-over-modal {
+            display: none; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95); 
+            color: #2c3e50; padding: 30px;
+            text-align: center; border: none; border-radius: 16px;
+            z-index: 20; width: 320px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-height: 80vh; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        
+        #game-over-modal h1 { margin: 0 0 10px 0; color: #e74c3c; font-size: 32px; letter-spacing: 2px; text-transform: uppercase; }
+        
+        /* 名字输入区域 */
+        #name-input-section {
+            display: none; margin: 15px 0;
+            animation: fadeIn 0.5s;
+        }
+        
+        input#player-name {
+            background: #f0f3f5; border: 2px solid #bdc3c7; color: #2c3e50;
+            padding: 8px; font-size: 16px; width: 60%; text-align: center;
+            border-radius: 4px; outline: none; transition: 0.3s;
+        }
+        input#player-name:focus { border-color: #3498db; background: #fff; }
+
+        button#submit-score-btn {
+            background: #3498db; color: #fff; border: none; padding: 8px 15px;
+            font-size: 14px; border-radius: 4px; cursor: pointer; margin-left: 5px;
+            font-weight: bold;
+        }
+        button#submit-score-btn:hover { background: #2980b9; }
+
+        #rank-status-msg { font-size: 12px; color: #7f8c8d; margin-top: 5px; min-height: 18px; }
+
+        /* 排行榜列表区域 */
+        #leaderboard-section {
+            margin-top: 15px; border-top: 2px solid #ecf0f1;
+            padding-top: 10px; flex-grow: 1; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+
+        #leaderboard-title {
+            font-size: 14px; color: #95a5a6; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold;
+        }
+
+        #leaderboard-list {
+            list-style: none; padding: 0; margin: 0;
+            overflow-y: auto; max-height: 200px;
+            font-size: 13px; text-align: left;
+            border: 1px solid #ecf0f1; background: #fafafa;
+            border-radius: 4px;
+        }
+        
+        #leaderboard-list::-webkit-scrollbar { width: 4px; }
+        #leaderboard-list::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 2px; }
+
+        #leaderboard-list li {
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+            display: flex; justify-content: space-between;
+            color: #34495e;
+        }
+        #leaderboard-list li:nth-child(odd) { background: #fff; }
+        #leaderboard-list li:nth-child(even) { background: #f9f9f9; }
+        #leaderboard-list li.highlight { color: #e74c3c; font-weight: bold; background: #fdedec; }
+        
+        .rank-num { width: 25px; color: #bdc3c7; display: inline-block; font-weight: bold; }
+        .rank-name { flex-grow: 1; padding-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rank-score { color: #2980b9; font-weight: 600; }
+
+        .btn-group { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+        button.action-btn { 
+            border: none; padding: 12px; font-size: 16px; cursor: pointer; 
+            border-radius: 30px; color: #fff; transition: 0.2s; font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        #restart-btn { background: linear-gradient(135deg, #3498db, #2980b9); }
+        #restart-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(52, 152, 219, 0.3); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <div id="loader-text">准备滑雪装备...</div>
+        <div class="loader-bar"><div class="loader-progress"></div></div>
+    </div>
+
+    <div id="ui">滑行距离: <span id="score">0</span> 米</div>
+    <div id="guide">🖱️/⌨️/👆 左右控制滑雪</div>
+    <div id="floating-text-container"></div>
+
+    <div id="debug-console">
+        <div>> 系统启动...</div>
+    </div>
+
+    <div id="game-over-modal" style="display: none;">
+        <h1>翻车了!</h1>
+        <p>本次滑行: <span id="final-score" style="color: #2980b9; font-weight: bold; font-size: 20px;">0</span> 米</p>
+        
+        <div id="name-input-section">
+            <div style="color: #e67e22; font-size: 14px; margin-bottom: 5px; font-weight: bold;">❄️ 滑雪高手！榜上有名 ❄️</div>
+            <div style="display: flex; justify-content: center;">
+                <input type="text" id="player-name" placeholder="输入你的名字" maxlength="10">
+                <button id="submit-score-btn" onclick="submitScore()">登记</button>
+            </div>
+        </div>
+
+        <div id="rank-status-msg">正在连接滑雪俱乐部...</div>
+
+        <div id="leaderboard-section">
+            <div id="leaderboard-title">TOP 100 滑雪健将</div>
+            <ul id="leaderboard-list">
+                <li style="text-align: center; color: #999; padding: 20px;">加载中...</li>
+            </ul>
+        </div>
+
+        <div class="btn-group">
+            <button id="restart-btn" class="action-btn" onclick="location.reload()">再滑一次</button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 🔧 配置区域
+        // ==========================================
+        
+        // 请在此处填入你的 Cloudflare Worker 地址
+        const CLOUDFLARE_WORKER_URL = "https://02run.pages.dev"; 
+
+        // ==========================================
+        
+        // 日志系统
+        function sysLog(msg, type='info') {
+            const consoleEl = document.getElementById('debug-console');
+            if(!consoleEl) return;
+            const time = new Date().toLocaleTimeString('en-US', {hour12: false, hour: "numeric", minute: "numeric", second: "numeric"});
+            const div = document.createElement('div');
+            if(type === 'error') { div.style.color = '#e74c3c'; div.innerHTML = `[${time}] ❌ ${msg}`; console.error(msg); } 
+            else if (type === 'warn') { div.style.color = '#f39c12'; div.innerHTML = `[${time}] ⚠️ ${msg}`; } 
+            else if (type === 'success') { div.style.color = '#27ae60'; div.innerHTML = `[${time}] ✅ ${msg}`; }
+            else { div.innerHTML = `[${time}] > ${msg}`; }
+            consoleEl.appendChild(div);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        // 浮动文字特效
+        function showFloatingText(text) {
+            const container = document.getElementById('floating-text-container');
+            const el = document.createElement('div');
+            el.className = 'floating-score';
+            el.innerText = text;
+            container.appendChild(el);
+            setTimeout(() => { if(el.parentNode) el.parentNode.removeChild(el); }, 1500);
+        }
+
+        // --- 排行榜逻辑 (保持不变) ---
+        const MOCK_DATA_KEY = 'alpine_ski_mock_leaderboard';
+        function getMockLeaderboard() {
+            let data = localStorage.getItem(MOCK_DATA_KEY);
+            if (!data) {
+                const initial = [
+                    { name: "SnowMan", score: 800 },
+                    { name: "SkiKing", score: 650 },
+                    { name: "Penguin", score: 400 },
+                    { name: "PolarBear", score: 200 }
+                ];
+                localStorage.setItem(MOCK_DATA_KEY, JSON.stringify(initial));
+                return initial;
+            }
+            return JSON.parse(data);
+        }
+
+        async function fetchLeaderboard() {
+           const apiUrl = CLOUDFLARE_WORKER_URL || "";
+            try {
+                const response = await fetch(`${apiUrl}/rankings`);
+                if (!response.ok) throw new Error("API Error");
+                return await response.json();
+            } catch (e) {
+                sysLog(`Fetch Rank Failed: ${e.message}`, 'error');
+                return getMockLeaderboard(); 
+            }
+        }
+
+        async function sendScoreToDB(name, score) {
+            const apiUrl = CLOUDFLARE_WORKER_URL || "";
+            try {
+                const response = await fetch(`${apiUrl}/submit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, score })
+                });
+
+                let result;
+                try { result = await response.json(); } catch (jsonError) {
+                    sysLog(`Parse Error: ${jsonError.message}`, 'error');
+                    return { success: false, message: `服务器错误 (${response.status})` };
+                }
+
+                if (!response.ok) {
+                    const errorMsg = result.message || result.error || "提交被拒绝";
+                    sysLog(`提交失败: ${errorMsg}`, 'warn');
+                    return { success: false, message: errorMsg };
+                }
+                return { success: true };
+            } catch (e) {
+                sysLog(`Submit Failed: ${e.message}`, 'error');
+                return { success: false, message: "网络请求失败，请检查连接" };
+            }
+        }
+
+        let currentFinalScore = 0;
+        let cachedLeaderboard = [];
+
+        async function onGameOverUI(score) {
+            currentFinalScore = score;
+            const modal = document.getElementById('game-over-modal');
+            const scoreText = document.getElementById('final-score');
+            const inputSection = document.getElementById('name-input-section');
+            const msgEl = document.getElementById('rank-status-msg');
+            const listEl = document.getElementById('leaderboard-list');
+
+            scoreText.innerText = score;
+            modal.style.display = 'flex';
+            inputSection.style.display = 'none';
+            msgEl.innerText = "正在获取排名数据...";
+            listEl.innerHTML = '<li style="text-align:center; padding:20px; color:#999;">加载中...</li>';
+
+            cachedLeaderboard = await fetchLeaderboard();
+            renderLeaderboard(cachedLeaderboard);
+
+            const maxListSize = 100;
+            const minScoreOnBoard = cachedLeaderboard.length < maxListSize ? 0 : cachedLeaderboard[cachedLeaderboard.length - 1].score;
+
+            if (score > minScoreOnBoard || cachedLeaderboard.length < maxListSize) {
+                inputSection.style.display = 'block';
+                msgEl.innerText = "请输入名字以登记成绩";
+                msgEl.style.color = "#e67e22";
+            } else {
+                inputSection.style.display = 'none';
+                msgEl.innerText = "距离上榜还差一点点，下次努力！";
+                msgEl.style.color = "#7f8c8d";
+            }
+        }
+
+        function renderLeaderboard(data) {
+            const listEl = document.getElementById('leaderboard-list');
+            listEl.innerHTML = '';
+            
+            if (data.length === 0) {
+                listEl.innerHTML = '<li style="text-align:center; padding:20px; color:#999;">暂无数据，快来抢第一！</li>';
+                return;
+            }
+
+            data.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span class="rank-num">${index + 1}.</span>
+                    <span class="rank-name">${escapeHtml(item.name)}</span>
+                    <span class="rank-score">${item.score}m</span>
+                `;
+                listEl.appendChild(li);
+            });
+        }
+
+        async function submitScore() {
+            const input = document.getElementById('player-name');
+            const btn = document.getElementById('submit-score-btn');
+            const name = input.value.trim();
+            
+            if (!name) { alert("名字不能为空"); return; }
+
+            btn.disabled = true;
+            btn.innerText = "提交中...";
+
+            const res = await sendScoreToDB(name, currentFinalScore);
+            
+            if (res.success) {
+                document.getElementById('name-input-section').style.display = 'none';
+                document.getElementById('rank-status-msg').innerText = "登记成功！";
+                document.getElementById('rank-status-msg').style.color = "#27ae60";
+                cachedLeaderboard = await fetchLeaderboard();
+                renderLeaderboard(cachedLeaderboard);
+            } else {
+                btn.disabled = false;
+                btn.innerText = "重试";
+                alert(res.message); 
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return "Unknown";
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+
+        // CDN 列表
+        const CDN_LIST = [
+            "https://lib.baomitu.com/three.js/r128/three.min.js",
+            "https://cdn.bootcdn.net/ajax/libs/three.js/r128/three.min.js",
+            "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+        ];
+
+        let currentCdnIndex = 0;
+
+        function loadScript(url) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = url;
+                script.onload = () => resolve();
+                script.onerror = () => reject();
+                document.head.appendChild(script);
+            });
+        }
+
+        async function tryLoadEngine() {
+            if (currentCdnIndex >= CDN_LIST.length) {
+                document.getElementById('loader-text').innerText = "FATAL ERROR: NO NETWORK";
+                return;
+            }
+            const url = CDN_LIST[currentCdnIndex];
+            sysLog(`连接引擎节点 ${currentCdnIndex + 1}...`);
+            
+            try {
+                await Promise.race([
+                    loadScript(url),
+                    new Promise((_, r) => setTimeout(() => r(new Error("Timeout")), 3000))
+                ]);
+                sysLog("3D引擎加载完成！", 'success');
+                document.getElementById('loader-text').innerText = "正在构建雪山场景...";
+                setTimeout(initGame, 100);
+            } catch (error) {
+                currentCdnIndex++;
+                tryLoadEngine(); 
+            }
+        }
+
+        tryLoadEngine();
+
+        // --- 🎨 雪山风格纹理生成器 ---
+        
+        // 🌲 松树纹理 (Green Pine)
+        function createPineTreeTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 512; 
+            const ctx = canvas.getContext('2d');
+            
+            // 简单的三角形堆叠
+            ctx.fillStyle = '#2d5a27'; // 深绿色
+            ctx.beginPath();
+            ctx.moveTo(256, 20);
+            ctx.lineTo(450, 480);
+            ctx.lineTo(62, 480);
+            ctx.fill();
+            
+            // 添加一些雪在树上
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(256, 20);
+            ctx.lineTo(320, 150);
+            ctx.lineTo(192, 150);
+            ctx.fill();
+            
+            // 树干
+            ctx.fillStyle = '#5d4037';
+            ctx.fillRect(236, 480, 40, 32);
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // 🪨 岩石/雪堆纹理 (Rock/Snow Mound)
+        function createRockTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            // 灰色岩石底
+            ctx.fillStyle = '#7f8c8d';
+            ctx.beginPath();
+            ctx.arc(128, 128, 100, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 顶部积雪
+            ctx.fillStyle = '#ecf0f1';
+            ctx.beginPath();
+            ctx.arc(128, 110, 80, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 阴影细节
+            ctx.strokeStyle = '#95a5a6';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.arc(128, 128, 100, 0, Math.PI * 2);
+            ctx.stroke();
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // 🟡 金币/水晶纹理 (Coin/Crystal)
+        function createCoinTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            // 金色外圈
+            ctx.fillStyle = '#f1c40f';
+            ctx.beginPath();
+            ctx.arc(128, 128, 110, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 内部高亮
+            ctx.fillStyle = '#f39c12';
+            ctx.beginPath();
+            ctx.arc(128, 128, 90, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 中间有个雪花符号或$
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 120px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('❄', 128, 135);
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // --- ⛰️ 地形系统 (平滑雪坡) ---
+        function getElevation(x, z) {
+            // 减少高度变化，让雪地更平滑，适合滑雪
+            const h1 = Math.sin(x * 0.03) * Math.cos(z * 0.02) * 2.0;
+            const h2 = Math.cos(x * 0.08 + 1.0) * 0.8;
+            return -3.0 + h1 + h2; 
+        }
+
+        // --- 游戏主逻辑 ---
+        function initGame() {
+            try {
+                let baseSpeed = 0.5; let speed = baseSpeed;
+                let score = 0; // 基础距离
+                let bonusScore = 0; 
+                let playerVelocityX = 0; let mouseXNormal = 0;
+                let isGameOver = false; let time = 0; let finalScore = 0;
+                let startTime = performance.now(); let lastLevel = 0;
+                let distanceRun = 0;
+                const playerHeight = 1.8; 
+
+                // --- 奖励生成控制 ---
+                let lastFlowerSpawnTime = performance.now();
+                let flowerSpawnInterval = 2000; 
+
+                sysLog("初始化滑雪场...");
+                const scene = new THREE.Scene();
+                // ❄️ 更改背景颜色为天空蓝/雾白
+                const skyColor = 0x87CEEB; // Sky Blue
+                const fogColor = 0xe0f0ff; // Light snowy fog
+                scene.background = new THREE.Color(skyColor);
+                scene.fog = new THREE.Fog(fogColor, 15, 120); 
+
+                const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
+                camera.position.set(0, playerHeight, 5);
+
+                const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                document.body.appendChild(renderer.domElement);
+
+                const loader = document.getElementById('loader');
+                loader.style.opacity = 0;
+                setTimeout(() => loader.style.display = 'none', 800);
+
+                // ☀️ 阳光 (Directional Light) 代替手电筒
+                const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+                sunLight.position.set(50, 100, 50);
+                sunLight.castShadow = true;
+                sunLight.shadow.mapSize.width = 2048;
+                sunLight.shadow.mapSize.height = 2048;
+                sunLight.shadow.camera.near = 0.5;
+                sunLight.shadow.camera.far = 500;
+                sunLight.shadow.camera.left = -100;
+                sunLight.shadow.camera.right = 100;
+                sunLight.shadow.camera.top = 100;
+                sunLight.shadow.camera.bottom = -100;
+                scene.add(sunLight);
+
+                // 环境光增强，模拟雪地反光
+                const ambient = new THREE.AmbientLight(0xccccff, 0.6); 
+                scene.add(ambient);
+
+                // --- 地面 (雪地) ---
+                const groundMat = new THREE.MeshStandardMaterial({ 
+                    color: 0xffffff, roughness: 0.8, metalness: 0.1 
+                });
+                const groundGeo = new THREE.PlaneGeometry(200, 200, 60, 60);
+                const ground = new THREE.Mesh(groundGeo, groundMat);
+                ground.rotation.x = -Math.PI / 2; 
+                ground.receiveShadow = true; 
+                scene.add(ground);
+
+                sysLog("生成素材...");
+                const pineTexture = createPineTreeTexture();
+                const rockTexture = createRockTexture();
+                const coinTexture = createCoinTexture();
+
+                // --- 实体系统 ---
+                const treeCount = 400; const bushCount = 200; 
+                const flowerPoolSize = 15; 
+                const spawnDistance = 140; 
+                
+                // 🌲 树木
+                const treeGeo = new THREE.PlaneGeometry(2, 4); treeGeo.translate(0, 2, 0); 
+                const treeMat = new THREE.MeshStandardMaterial({ 
+                    color: 0xffffff, map: pineTexture, alphaTest: 0.5, side: THREE.DoubleSide, transparent: true
+                });
+                treeMat.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: pineTexture, alphaTest: 0.5 });
+                const treeMesh = new THREE.InstancedMesh(treeGeo, treeMat, treeCount);
+                treeMesh.castShadow = true; treeMesh.receiveShadow = true;
+                scene.add(treeMesh);
+
+                // 🪨 岩石 (原灌木)
+                const bushGeo = new THREE.PlaneGeometry(2, 2); bushGeo.translate(0, 1, 0);
+                const bushMat = new THREE.MeshStandardMaterial({ 
+                    color: 0xffffff, map: rockTexture, alphaTest: 0.5, side: THREE.DoubleSide, transparent: true 
+                });
+                const bushMesh = new THREE.InstancedMesh(bushGeo, bushMat, bushCount);
+                bushMesh.castShadow = true; bushMesh.receiveShadow = true;
+                scene.add(bushMesh);
+
+                // 🟡 金币 (原花朵)
+                const flowerGeo = new THREE.PlaneGeometry(1.5, 1.5); flowerGeo.translate(0, 0.75, 0);
+                const flowerMat = new THREE.MeshBasicMaterial({
+                    map: coinTexture, alphaTest: 0.5, side: THREE.DoubleSide, transparent: true 
+                });
+                const flowerMesh = new THREE.InstancedMesh(flowerGeo, flowerMat, flowerPoolSize);
+                scene.add(flowerMesh);
+
+                const treesData = []; const bushesData = []; const flowersData = [];
+                const dummy = new THREE.Object3D(); 
+
+                for (let i = 0; i < treeCount; i++) treesData.push(createEntityData('tree'));
+                for (let i = 0; i < bushCount; i++) bushesData.push(createEntityData('bush'));
+                for (let i = 0; i < flowerPoolSize; i++) flowersData.push(createEntityData('flower'));
+
+                function createEntityData(type) {
+                    const spread = 800; // 稍微窄一点的赛道感
+                    const z = -Math.random() * spawnDistance;
+                    let x = (Math.random() - 0.5) * spread;
+                    
+                    if (type === 'tree') {
+                        // 随机大小的松树
+                        const scale = 1.0 + Math.random() * 2.0; 
+                        return { x, z, scaleX: scale, scaleY: scale };
+                    } else if (type === 'bush') {
+                        const scale = 0.8 + Math.random() * 1.0;
+                        return { x, z, scaleX: scale, scaleY: scale };
+                    } else if (type === 'flower') {
+                        return { x: 0, z: -999, active: false }; 
+                    }
+                }
+
+                function spawnBonus() {
+                    const flower = flowersData.find(f => !f.active);
+                    if (flower) {
+                        flower.active = true;
+                        flower.z = camera.position.z - spawnDistance;
+                        // 奖励通常出现在比较容易吃到的地方
+                        flower.x = camera.position.x + (Math.random() - 0.5) * 20; 
+                    }
+                }
+
+                // ❄️ 粒子系统 - 漫天飞雪 (修正版)
+                const particleCount = 1500; // 增加数量
+                const particleGeo = new THREE.BufferGeometry();
+                const particlePos = new Float32Array(particleCount * 3);
+                for(let i=0; i<particleCount*3; i+=3) {
+                    // X轴：大幅增加宽度，覆盖整个视野
+                    particlePos[i] = (Math.random() - 0.5) * 150;   
+                    // Y轴：高度
+                    particlePos[i+1] = Math.random() * 30; 
+                    // Z轴：深度覆盖
+                    particlePos[i+2] = (Math.random() - 0.5) * 60 - 10;       
+                }
+                particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+                // 雪花是白色的
+                const particleMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.2, transparent: true, opacity: 0.8 });
+                const particleSystem = new THREE.Points(particleGeo, particleMat);
+                scene.add(particleSystem); 
+
+                function updateMeshMatrix(mesh, dataArray, index) {
+                    const data = dataArray[index];
+                    dummy.position.set(data.x, data.y, data.z);
+                    
+                    if (mesh === flowerMesh) {
+                        // 金币旋转特效
+                        dummy.rotation.set(0, time * 3 + index, 0);
+                    } else {
+                        // 树木和岩石总是面向摄像机 (Billboard 效果) 或者是固定的
+                        // 这里的 PlaneGeometry 需要面向摄像机
+                        dummy.lookAt(camera.position.x, dummy.position.y, camera.position.z + 20); 
+                    }
+                    
+                    if(mesh !== flowerMesh) dummy.scale.set(data.scaleX, data.scaleY, 1);
+                    else dummy.scale.set(1, 1, 1);
+
+                    dummy.updateMatrix();
+                    mesh.setMatrixAt(index, dummy.matrix);
+                }
+
+                function resetEntityData(data, type) {
+                    data.z = camera.position.z - spawnDistance - Math.random() * 30;
+                    
+                    if (type === 'tree' || type === 'bush') {
+                        const spread = 800; 
+                        data.x = camera.position.x + (Math.random() - 0.5) * spread;
+                    } else if (type === 'flower') {
+                        data.active = false;
+                        data.z = -999; 
+                        return; 
+                    }
+                }
+
+                const updateControl = (xRatio) => { mouseXNormal = xRatio * 2 - 1; };
+                window.addEventListener('mousemove', e => updateControl(e.clientX / window.innerWidth));
+                const handleTouch = (e) => { if (e.touches.length > 0) updateControl(e.touches[0].clientX / window.innerWidth); };
+                window.addEventListener('touchmove', handleTouch, {passive: true});
+                window.addEventListener('touchstart', handleTouch, {passive: true});
+                window.addEventListener('touchend', () => mouseXNormal = 0);
+                window.addEventListener('keydown', e => { if (['ArrowLeft','a','A'].includes(e.key)) mouseXNormal = -1.0; else if (['ArrowRight','d','D'].includes(e.key)) mouseXNormal = 1.0; });
+                window.addEventListener('keyup', e => { if (['ArrowLeft','a','A','ArrowRight','d','D'].includes(e.key)) mouseXNormal = 0; });
+                window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+
+                function animate() {
+                    requestAnimationFrame(animate);
+                    if (isGameOver) { renderer.render(scene, camera); return; }
+
+                    const now = performance.now();
+                    const secondsElapsed = (now - startTime) / 1000;
+                    
+                    const currentLevel = Math.floor(secondsElapsed / 20); // 升级更快一点
+                    if (currentLevel > lastLevel) { lastLevel = currentLevel; sysLog(`速度提升! Level ${currentLevel}`, 'warn'); }
+                    const targetSpeed = baseSpeed + (currentLevel * 0.1);
+                    speed += (targetSpeed - speed) * 0.01;
+                    
+                    distanceRun += speed; 
+                    time += 0.05;
+
+                    // 奖励生成
+                    if (now - lastFlowerSpawnTime > flowerSpawnInterval) {
+                        spawnBonus();
+                        lastFlowerSpawnTime = now;
+                        flowerSpawnInterval = 1500 + Math.random() * 2000; 
+                    }
+                    
+                    // 滑雪物理手感
+                    if (Math.abs(mouseXNormal) > 0.1) {
+                        playerVelocityX += mouseXNormal * 0.06; 
+                    } else {
+                        playerVelocityX *= 0.92; // 阻力稍大，更容易停下来
+                    }
+                    playerVelocityX = Math.max(-1.2, Math.min(1.2, playerVelocityX)); 
+                    camera.position.x += playerVelocityX;
+
+                    // 摄像机高度跟随地形
+                    const cameraWorldZ = camera.position.z - distanceRun;
+                    const currentGroundY = getElevation(camera.position.x, cameraWorldZ);
+                    const targetCameraY = currentGroundY + playerHeight;
+                    camera.position.y += (targetCameraY - camera.position.y) * 0.2; // 更紧密的跟随
+
+                    // 地面移动逻辑
+                    ground.position.x = camera.position.x;
+                    ground.position.z = camera.position.z - 20;
+
+                    const posAttribute = groundGeo.attributes.position;
+                    const vertex = new THREE.Vector3();
+                    for (let i = 0; i < posAttribute.count; i++) {
+                        vertex.fromBufferAttribute(posAttribute, i);
+                        const localZ = -vertex.y; 
+                        const renderZ = ground.position.z + localZ;
+                        const worldZ = renderZ - distanceRun; 
+                        const worldX = ground.position.x + vertex.x;
+                        const elevation = getElevation(worldX, worldZ);
+                        posAttribute.setZ(i, elevation);
+                    }
+                    posAttribute.needsUpdate = true;
+                    groundGeo.computeVertexNormals();
+                    
+                    score++; 
+                    const distanceScore = Math.floor(score / 10);
+                    finalScore = distanceScore + bonusScore;
+                    const scoreEl = document.getElementById('score');
+                    if (scoreEl) scoreEl.innerText = finalScore;
+
+                    // --- 更新树木 (障碍物) ---
+                    for (let i = 0; i < treeCount; i++) {
+                        const data = treesData[i];
+                        data.z += speed; 
+                        const worldZ = data.z - distanceRun;
+                        data.y = getElevation(data.x, worldZ) + data.scaleY/2; // 调整中心点
+
+                        const distZ = data.z - camera.position.z;
+                        if (distZ > -0.5 && distZ < 0.5) {
+                            const distX = Math.abs(data.x - camera.position.x);
+                            // 碰撞检测
+                            if (distX < 0.8) { handleGameOver(); break; }
+                        }
+                        
+                        const isBehind = data.z > camera.position.z + 5;
+                        if (isBehind) resetEntityData(data, 'tree');
+                        updateMeshMatrix(treeMesh, treesData, i);
+                    }
+                    treeMesh.instanceMatrix.needsUpdate = true;
+
+                    // --- 更新岩石 (障碍物) ---
+                    for (let i = 0; i < bushCount; i++) {
+                        const data = bushesData[i];
+                        data.z += speed; 
+                        const worldZ = data.z - distanceRun;
+                        data.y = getElevation(data.x, worldZ) + 0.5;
+
+                        const distZ = data.z - camera.position.z;
+                        if (distZ > -0.5 && distZ < 0.5) {
+                            const distX = Math.abs(data.x - camera.position.x);
+                            if (distX < 0.8) { handleGameOver(); break; }
+                        }
+
+                        const isBehind = data.z > camera.position.z + 5;
+                        if (isBehind) resetEntityData(data, 'bush');
+                        updateMeshMatrix(bushMesh, bushesData, i);
+                    }
+                    bushMesh.instanceMatrix.needsUpdate = true;
+
+                    // --- 更新金币 (奖励) ---
+                    for (let i = 0; i < flowerPoolSize; i++) {
+                        const data = flowersData[i];
+                        if (!data.active) {
+                            dummy.position.set(0, -10000, 0); 
+                            flowerMesh.setMatrixAt(i, dummy.matrix);
+                            continue;
+                        }
+
+                        data.z += speed; 
+                        const worldZ = data.z - distanceRun;
+                        data.y = getElevation(data.x, worldZ) + 1.0; 
+
+                        // 碰撞检测 (收集)
+                        const distZ = data.z - camera.position.z;
+                        if (distZ > -1.0 && distZ < 0.5) {
+                            const distX = Math.abs(data.x - camera.position.x);
+                            if (distX < 1.5) { 
+                                data.active = false;
+                                bonusScore += 20; // 金币分值更高
+                                showFloatingText("+20m ❄️");
+                                sysLog("获得金币奖励！");
+                            }
+                        }
+
+                        const isBehind = data.z > camera.position.z + 5;
+                        if (isBehind) resetEntityData(data, 'flower'); 
+                        updateMeshMatrix(flowerMesh, flowersData, i);
+                    }
+                    flowerMesh.instanceMatrix.needsUpdate = true;
+
+                    // ❄️ 雪花下落逻辑 (修正版)
+                    const positions = particleGeo.attributes.position.array;
+                    for(let i=0; i<particleCount*3; i+=3) {
+                        // 1. 左右轻微飘动 (模拟风)
+                        positions[i] += Math.sin(time * 3 + positions[i+1]) * 0.02;
+                        
+                        // 2. 下落 Y
+                        positions[i+1] -= 0.15;
+
+                        // 3. 相对运动 Z (粒子向后飞 = 玩家向前冲)
+                        // 注意：这里粒子是相对相机的，所以 Z 增加意味着粒子往相机后面跑
+                        positions[i+2] += speed * 0.8; 
+
+                        // 4. 循环重置机制
+                        // 如果掉到地下(y<-5) 或者 跑到相机后面太远(z>10)
+                        if(positions[i+1] < -5 || positions[i+2] > 10) {
+                            // 重置到上方和前方
+                            positions[i+1] = 20 + Math.random() * 10; // 高空
+                            positions[i+2] = -40 - Math.random() * 20; // 远处
+                            // 关键：在宽范围内随机重置 X，确保不会聚集
+                            positions[i] = (Math.random() - 0.5) * 150; 
+                        }
+                    }
+                    
+                    // 粒子系统始终跟随相机位置 (形成一个跟随玩家的暴风雪盒子)
+                    particleSystem.position.x = camera.position.x;
+                    particleSystem.position.z = camera.position.z;
+                    particleGeo.attributes.position.needsUpdate = true;
+
+                    renderer.render(scene, camera);
+                }
+
+                function handleGameOver() {
+                    sysLog(`翻车了! 最终距离: ${finalScore}`);
+                    isGameOver = true;
+                    // 简单的震动效果/颜色变红提示
+                    scene.background = new THREE.Color(0xffcccc);
+                    scene.fog = new THREE.Fog(0xffcccc, 5, 50);
+                    onGameOverUI(finalScore);
+                }
+
+                animate();
+                sysLog("滑雪场已开放!", 'success');
+            } catch (e) { sysLog(`Init Crash: ${e.message}`, 'error'); }
+        }
+    </script>
+</body>
+</html>
