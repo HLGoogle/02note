@@ -789,7 +789,7 @@
                         const data = treesData[i];
                         data.z += speed; 
                         const worldZ = data.z - distanceRun;
-                        data.y = getElevation(data.x, worldZ) + data.scaleY/2; // 调整中心点
+                        data.y = getElevation(data.x, worldZ) // 调整中心点  备选抬高:"+ data.scaleY/2;" 
 
                         const distZ = data.z - camera.position.z;
                         if (distZ > -0.5 && distZ < 0.5) {
